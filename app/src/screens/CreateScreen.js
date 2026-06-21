@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput,
   KeyboardAvoidingView, Platform,
@@ -18,10 +18,12 @@ import TagPeopleModal from '../components/TagPeopleModal';
 import { uploadVideo } from '../api/videos';
 import { saveDraft, deleteDraft } from '../api/drafts';
 import { FILTERS, filterOverlay } from '../theme/filters';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function CreateScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [asset, setAsset] = useState(null);
   const [caption, setCaption] = useState('');
   const [filter, setFilter] = useState('none');
@@ -429,6 +431,8 @@ export default function CreateScreen({ navigation, route }) {
 }
 
 function VolumeRow({ label, value, onChange }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.volRow}>
       <Text style={styles.volLabel}>{label}</Text>
@@ -441,7 +445,7 @@ function VolumeRow({ label, value, onChange }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
   title: { color: colors.text, fontSize: 24, fontWeight: '800' },

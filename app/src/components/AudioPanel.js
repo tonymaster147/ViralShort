@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, Modal, TouchableOpacity, FlatList, TextInput, ActivityIndicator,
 } from 'react-native';
@@ -8,7 +8,7 @@ import { createAudioPlayer } from 'expo-audio';
 import {
   fetchTrendingSounds, searchSounds, fetchSavedSounds, toggleSavedSound,
 } from '../api/videos';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 function fmt(s) {
   if (!s) return '';
@@ -18,6 +18,8 @@ function fmt(s) {
 }
 
 export default function AudioPanel({ visible, onClose, onSelectSound, onSelectDevice, onSelectOriginal }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [tab, setTab] = useState('trending');
   const [q, setQ] = useState('');
   const [items, setItems] = useState([]);
@@ -162,7 +164,7 @@ export default function AudioPanel({ visible, onClose, onSelectSound, onSelectDe
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 16, paddingBottom: 20 },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 10 },

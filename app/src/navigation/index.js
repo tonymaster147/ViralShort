@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
@@ -29,18 +29,9 @@ import ContestScreen from '../screens/ContestScreen';
 import DraftsScreen from '../screens/DraftsScreen';
 import CameraScreen from '../screens/CameraScreen';
 import { useSocket } from '../context/SocketContext';
+import { useTheme } from '../theme/ThemeContext';
 
-const navTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: colors.bg,
-    card: colors.surface,
-    text: colors.text,
-    border: colors.border,
-    primary: colors.primary,
-  },
-};
+const mkStackOpts = (c) => ({ headerStyle: { backgroundColor: c.surface }, headerTintColor: c.text, headerShadowVisible: false });
 
 // --- Auth flow ---
 const AuthStack = createNativeStackNavigator();
@@ -56,13 +47,9 @@ function AuthNavigator() {
 // --- Profile stack (profile + edit) ---
 const ProfileStack = createNativeStackNavigator();
 function ProfileNavigator() {
+  const { colors } = useTheme();
   return (
-    <ProfileStack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.surface },
-        headerTintColor: colors.text,
-      }}
-    >
+    <ProfileStack.Navigator screenOptions={mkStackOpts(colors)}>
       <ProfileStack.Screen name="MyProfile" component={ProfileScreen} options={{ title: 'Profile' }} />
       <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile' }} />
       <ProfileStack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profile' }} />
@@ -78,7 +65,6 @@ function ProfileNavigator() {
   );
 }
 
-const stackOpts = { headerStyle: { backgroundColor: colors.surface }, headerTintColor: colors.text };
 
 // Shared routes added to multiple stacks (so UserProfile/Chat/Video work anywhere).
 function discoveryScreens(Stack) {
@@ -97,8 +83,9 @@ function discoveryScreens(Stack) {
 // Feed stack
 const FeedStack = createNativeStackNavigator();
 function FeedNavigator() {
+  const { colors } = useTheme();
   return (
-    <FeedStack.Navigator screenOptions={stackOpts}>
+    <FeedStack.Navigator screenOptions={mkStackOpts(colors)}>
       <FeedStack.Screen name="FeedHome" component={FeedScreen} options={{ headerShown: false }} />
       {discoveryScreens(FeedStack)}
     </FeedStack.Navigator>
@@ -108,8 +95,9 @@ function FeedNavigator() {
 // Discover stack
 const DiscoverStack = createNativeStackNavigator();
 function DiscoverNavigator() {
+  const { colors } = useTheme();
   return (
-    <DiscoverStack.Navigator screenOptions={stackOpts}>
+    <DiscoverStack.Navigator screenOptions={mkStackOpts(colors)}>
       <DiscoverStack.Screen name="DiscoverHome" component={DiscoverScreen} options={{ headerShown: false }} />
       {discoveryScreens(DiscoverStack)}
     </DiscoverStack.Navigator>
@@ -119,8 +107,9 @@ function DiscoverNavigator() {
 // Create stack (creator + drafts)
 const CreateStack = createNativeStackNavigator();
 function CreateNavigator() {
+  const { colors } = useTheme();
   return (
-    <CreateStack.Navigator screenOptions={stackOpts}>
+    <CreateStack.Navigator screenOptions={mkStackOpts(colors)}>
       <CreateStack.Screen name="CreateMain" component={CreateScreen} options={{ headerShown: false }} />
       <CreateStack.Screen name="Camera" component={CameraScreen} options={{ headerShown: false }} />
       <CreateStack.Screen name="Drafts" component={DraftsScreen} options={{ title: 'Drafts' }} />
@@ -131,8 +120,9 @@ function CreateNavigator() {
 // Inbox stack (conversations + chat + tappable profiles/videos)
 const InboxStack = createNativeStackNavigator();
 function InboxNavigator() {
+  const { colors } = useTheme();
   return (
-    <InboxStack.Navigator screenOptions={stackOpts}>
+    <InboxStack.Navigator screenOptions={mkStackOpts(colors)}>
       <InboxStack.Screen name="InboxHome" component={InboxScreen} options={{ headerShown: false }} />
       {discoveryScreens(InboxStack)}
     </InboxStack.Navigator>
@@ -173,6 +163,7 @@ function createIcon() {
 const Tab = createBottomTabNavigator();
 function MainNavigator() {
   const { unreadMessages, unreadNotifications } = useSocket();
+  const { colors } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -204,6 +195,19 @@ const badgeStyle = StyleSheet.create({
 
 export default function RootNavigation() {
   const { user, loading } = useAuth();
+  const { colors, isDark } = useTheme();
+
+  const navTheme = {
+    ...(isDark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(isDark ? DarkTheme : DefaultTheme).colors,
+      background: colors.bg,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+      primary: colors.primary,
+    },
+  };
 
   if (loading) {
     return (

@@ -1,12 +1,14 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useFocusEffect } from '@react-navigation/native';
 import { listDrafts, deleteDraft } from '../api/drafts';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 function DraftTile({ draft, onOpen, onDelete }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const player = useVideoPlayer(draft.videoUri, (p) => { p.muted = true; });
   const when = new Date(draft.updatedAt);
   return (
@@ -24,6 +26,8 @@ function DraftTile({ draft, onOpen, onDelete }) {
 }
 
 export default function DraftsScreen({ navigation }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [drafts, setDrafts] = useState([]);
 
   const load = useCallback(async () => { setDrafts(await listDrafts()); }, []);
@@ -56,7 +60,7 @@ export default function DraftsScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   tile: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 12, padding: 10, marginBottom: 10, gap: 12 },
   thumb: { width: 54, height: 72, borderRadius: 8, backgroundColor: '#000' },

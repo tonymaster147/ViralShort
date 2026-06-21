@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, Dimensions, RefreshControl,
   ActivityIndicator, TouchableOpacity,
@@ -9,12 +9,14 @@ import VideoCard from '../components/VideoCard';
 import CommentsSheet from '../components/CommentsSheet';
 import { Loading, EmptyState } from '../components/StateViews';
 import { fetchFeed, fetchFollowingFeed } from '../api/videos';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 
 export default function FeedScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   // Each page = full screen minus the bottom tab bar (~50) + safe area.
   const ITEM_HEIGHT = SCREEN_H - 49 - insets.bottom;
 
@@ -129,7 +131,7 @@ export default function FeedScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   tabs: { position: 'absolute', alignSelf: 'center', flexDirection: 'row', zIndex: 10, gap: 22 },
   tab: { color: colors.textMuted, fontSize: 16, fontWeight: '700' },

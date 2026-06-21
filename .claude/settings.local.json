@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; SHOW COLUMNS FROM videos LIKE 'location%'; SHOW COLUMNS FROM videos LIKE 'scheduled_at'; SHOW COLUMNS FROM videos LIKE 'status'; SHOW TABLES LIKE 'mentions';\")"
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; SHOW COLUMNS FROM videos LIKE 'location%'; SHOW COLUMNS FROM videos LIKE 'scheduled_at'; SHOW COLUMNS FROM videos LIKE 'status'; SHOW TABLES LIKE 'mentions';\")",
+      "Bash(sed -i 's/^import React, { useEffect, useState, useRef, useCallback } from '\"'\"'react'\"'\"';/import React, { useEffect, useState, useRef, useCallback, useMemo } from '\"'\"'react'\"'\"';/' src/components/AudioPanel.js)",
+      "Bash(sed -i 's/^const styles = StyleSheet.create\\({/const makeStyles = \\(colors\\) => StyleSheet.create\\({/' src/components/AudioPanel.js)",
+      "Bash(grep -n \"import { colors }\\\\|^import React\\\\|const styles = StyleSheet.create\\\\|export default function ProfileScreen\\\\|const { user, logout\" src/screens/ProfileScreen.js)"
     ]
   }
 }

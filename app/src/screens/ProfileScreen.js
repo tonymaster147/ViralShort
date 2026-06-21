@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Image, FlatList, TouchableOpacity, Dimensions } from 'react-native';
 import { Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,12 +7,14 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { Button } from '../components/ui';
 import { fetchUserVideos, deleteVideo } from '../api/videos';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 const { width } = Dimensions.get('window');
 const TILE = (width - 6) / 3;
 
 function Stat({ value, label }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.stat}>
       <Text style={styles.statValue}>{value ?? 0}</Text>
@@ -24,6 +26,8 @@ function Stat({ value, label }) {
 export default function ProfileScreen({ navigation }) {
   const { user, logout, refreshUser } = useAuth();
   const { on } = useSocket();
+  const { colors, mode, setMode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [videos, setVideos] = useState([]);
 
   const reload = useCallback(async () => {
@@ -99,6 +103,21 @@ export default function ProfileScreen({ navigation }) {
       <View style={{ height: 12 }} />
       <Button title="Log Out" onPress={logout} variant="card" />
 
+      {/* Appearance toggle */}
+      <Text style={styles.gridTitle}>Appearance</Text>
+      <View style={styles.segment}>
+        {[['system', 'phone-portrait-outline', 'System'], ['dark', 'moon', 'Dark'], ['light', 'sunny', 'Light']].map(([m, icon, lbl]) => (
+          <TouchableOpacity
+            key={m}
+            style={[styles.segmentBtn, mode === m && styles.segmentBtnActive]}
+            onPress={() => setMode(m)}
+          >
+            <Ionicons name={icon} size={16} color={mode === m ? '#fff' : colors.textMuted} />
+            <Text style={[styles.segmentText, mode === m && styles.segmentTextActive]}>{lbl}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <Text style={styles.gridTitle}>My Videos</Text>
       {videos.length > 0 && <Text style={styles.gridHint}>Long-press a video to delete</Text>}
     </View>
@@ -166,7 +185,7 @@ export default function ProfileScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: { alignItems: 'center', marginBottom: 20 },
   avatar: { width: 96, height: 96, borderRadius: 48, marginBottom: 12 },
@@ -181,6 +200,11 @@ const styles = StyleSheet.create({
   },
   stat: { alignItems: 'center' },
   gridTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 24, marginBottom: 4 },
+  segment: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 12, padding: 4, gap: 4, marginTop: 8 },
+  segmentBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 9 },
+  segmentBtnActive: { backgroundColor: colors.primary },
+  segmentText: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
+  segmentTextActive: { color: '#fff' },
   gridHint: { color: colors.textMuted, fontSize: 12, marginBottom: 6 },
   tile: { width: TILE, height: TILE * 1.4, backgroundColor: colors.card, borderRadius: 6, overflow: 'hidden', justifyContent: 'flex-end' },
   tileImg: { ...StyleSheet.absoluteFillObject, width: TILE, height: TILE * 1.4 },

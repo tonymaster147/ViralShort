@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Text,
   TextInput,
@@ -7,9 +7,11 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 export function Field({ label, ...props }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={{ marginBottom: 14 }}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
@@ -24,6 +26,8 @@ export function Field({ label, ...props }) {
 }
 
 export function Button({ title, onPress, loading, disabled, variant = 'primary' }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const bg =
     variant === 'primary' ? colors.primary :
     variant === 'outline' ? 'transparent' : colors.card;
@@ -47,7 +51,7 @@ export function Button({ title, onPress, loading, disabled, variant = 'primary' 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   label: { color: colors.textMuted, marginBottom: 6, fontSize: 13 },
   input: {
     backgroundColor: colors.card,
