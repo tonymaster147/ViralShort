@@ -1,0 +1,10 @@
+node_modules/
+.env
+.expo/
+dist/
+*.log
+.DS_Store
+server/uploads/videos/*
+server/uploads/thumbs/*
+server/uploads/avatars/*
+!server/uploads/**/.gitkeep

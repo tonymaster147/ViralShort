@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mysql --version)",
+      "Bash(java -version)",
+      "Bash(adb version *)",
+      "Bash(ffmpeg -version)",
+      "Read(//c/xampp/**)",
+      "Bash(cd \"e:/my projects/viralshort\" && mkdir -p server/src/config server/src/middleware server/src/routes server/src/controllers server/src/sockets server/db server/uploads/videos server/uploads/thumbs server/uploads/avatars && echo \"server dirs created\" && ls server)",
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root)",
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; SHOW TABLES;\")",
+      "Bash(ipconfig)",
+      "Bash(git init *)",
+      "Bash(git config *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Phase 0: ViralShort foundation — Express API, MySQL schema, Expo app with health check *)"
+    ],
+    "additionalDirectories": [
+      "e:\\my projects\\viralshort\\server\\src"
+    ]
+  }
+}
