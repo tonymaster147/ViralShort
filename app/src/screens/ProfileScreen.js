@@ -72,7 +72,7 @@ export default function ProfileScreen({ navigation }) {
         <Stat value={user.videoCount} label="Videos" />
       </View>
 
-      <View style={styles.wallet}>
+      <TouchableOpacity style={styles.wallet} onPress={() => navigation.navigate('Wallet')}>
         <View style={styles.walletItem}>
           <Text style={[styles.walletValue, { color: colors.coin }]}>🪙 {user.coins}</Text>
           <Text style={styles.walletLabel}>Coins</Text>
@@ -81,7 +81,11 @@ export default function ProfileScreen({ navigation }) {
           <Text style={[styles.walletValue, { color: colors.diamond }]}>💎 {user.diamonds}</Text>
           <Text style={styles.walletLabel}>Diamonds</Text>
         </View>
-      </View>
+        <View style={styles.walletItem}>
+          <Text style={[styles.walletValue, { color: colors.text, fontSize: 16 }]}>Wallet ›</Text>
+          <Text style={styles.walletLabel}>Open</Text>
+        </View>
+      </TouchableOpacity>
 
       <Button title="Edit Profile" onPress={() => navigation.navigate('EditProfile')} variant="outline" />
       <View style={{ height: 12 }} />

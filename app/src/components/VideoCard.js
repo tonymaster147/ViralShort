@@ -7,6 +7,7 @@ import { addView } from '../api/videos';
 import { toggleLike, toggleFollow } from '../api/social';
 import { useAuth } from '../context/AuthContext';
 import { filterOverlay } from '../theme/filters';
+import GiftSheet from './GiftSheet';
 
 // One full-screen reel. `active` controls play/pause as the user swipes.
 export default function VideoCard({ video, active, height, onOpenComments, onUserPress }) {
@@ -23,6 +24,7 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
   const [likeCount, setLikeCount] = useState(video.likeCount || 0);
   const [commentCount, setCommentCount] = useState(video.commentCount || 0);
   const [following, setFollowing] = useState(false);
+  const [giftOpen, setGiftOpen] = useState(false);
 
   const isOwn = user?.id === video.user.id;
 
@@ -95,10 +97,12 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
           <Text style={styles.actionLabel}>{commentCount}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.action}>
-          <Text style={styles.actionEmoji}>🎁</Text>
-          <Text style={styles.actionLabel}>Gift</Text>
-        </TouchableOpacity>
+        {!isOwn && (
+          <TouchableOpacity style={styles.action} onPress={() => setGiftOpen(true)}>
+            <Text style={styles.actionEmoji}>🎁</Text>
+            <Text style={styles.actionLabel}>Gift</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity style={styles.action}>
           <Text style={styles.actionEmoji}>↗️</Text>
@@ -132,6 +136,12 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
         {video.soundTitle ? <Text style={styles.sound}>♪ {video.soundTitle}</Text> : null}
         <Text style={styles.views}>👁 {video.views} views</Text>
       </View>
+
+      <GiftSheet
+        visible={giftOpen}
+        videoId={video.id}
+        onClose={() => setGiftOpen(false)}
+      />
     </View>
   );
 }

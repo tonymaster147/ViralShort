@@ -30,6 +30,7 @@ app.use('/api/comments', require('./routes/comments'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/discover', require('./routes/discover'));
 app.use('/api/conversations', require('./routes/conversations'));
+app.use('/api', require('./routes/economy'));
 
 // 404 handler
 app.use((req, res) => {

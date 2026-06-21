@@ -2,6 +2,7 @@ const http = require('http');
 const app = require('./app');
 const { checkConnection } = require('./config/db');
 const { attachSockets } = require('./sockets');
+const { startContestEngine } = require('./jobs/contestEngine');
 require('dotenv').config();
 
 const PORT = Number(process.env.PORT) || 4000;
@@ -23,5 +24,11 @@ attachSockets(server, app);
   server.listen(PORT, () => {
     console.log(`[server] ViralShort API running on http://127.0.0.1:${PORT}`);
     console.log(`[server] Health check: http://127.0.0.1:${PORT}/api/health`);
+    // Weekly contest scheduler (creates/closes contests + pays winners)
+    try {
+      startContestEngine(app);
+    } catch (e) {
+      console.error('[contest] failed to start:', e.message);
+    }
   });
 })();

@@ -21,6 +21,10 @@ import VideoScreen from '../screens/VideoScreen';
 import InboxScreen from '../screens/InboxScreen';
 import ChatScreen from '../screens/ChatScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import WalletScreen from '../screens/WalletScreen';
+import BuyCoinsScreen from '../screens/BuyCoinsScreen';
+import LeaderboardScreen from '../screens/LeaderboardScreen';
+import ContestScreen from '../screens/ContestScreen';
 import { useSocket } from '../context/SocketContext';
 
 const navTheme = {
@@ -63,6 +67,10 @@ function ProfileNavigator() {
       <ProfileStack.Screen name="Video" component={VideoScreen} options={{ headerShown: false }} />
       <ProfileStack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
       <ProfileStack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
+      <ProfileStack.Screen name="Wallet" component={WalletScreen} options={{ title: 'Wallet' }} />
+      <ProfileStack.Screen name="BuyCoins" component={BuyCoinsScreen} options={{ title: 'Buy Coins' }} />
+      <ProfileStack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ title: 'Leaderboard' }} />
+      <ProfileStack.Screen name="Contest" component={ContestScreen} options={{ title: 'Weekly Contest' }} />
     </ProfileStack.Navigator>
   );
 }
@@ -77,6 +85,8 @@ function discoveryScreens(Stack) {
       <Stack.Screen name="Hashtag" component={HashtagScreen} options={{ title: 'Hashtag' }} />
       <Stack.Screen name="Video" component={VideoScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
+      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ title: 'Leaderboard' }} />
+      <Stack.Screen name="Contest" component={ContestScreen} options={{ title: 'Weekly Contest' }} />
     </>
   );
 }
