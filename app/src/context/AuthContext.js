@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signupRequest, loginRequest, fetchMe } from '../api/auth';
+import { onClientEvent } from '../api/client';
 
 const AuthContext = createContext(null);
 
@@ -43,6 +44,12 @@ export function AuthProvider({ children }) {
     await AsyncStorage.removeItem('token');
     setUser(null);
   }, []);
+
+  // Auto sign-out if the server rejects our token (expired/invalid).
+  useEffect(() => {
+    const off = onClientEvent('unauthorized', () => { logout(); });
+    return off;
+  }, [logout]);
 
   // Let screens refresh/replace the cached user (after profile edits etc).
   const refreshUser = useCallback(async () => {

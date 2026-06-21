@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Image, FlatList, TouchableOpacity, Dimensions } from 'react-native';
+import { Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui';
-import { fetchUserVideos } from '../api/videos';
+import { fetchUserVideos, deleteVideo } from '../api/videos';
 import { colors } from '../theme/colors';
 
 const { width } = Dimensions.get('window');
@@ -92,11 +93,33 @@ export default function ProfileScreen({ navigation }) {
       <Button title="Log Out" onPress={logout} variant="card" />
 
       <Text style={styles.gridTitle}>My Videos</Text>
+      {videos.length > 0 && <Text style={styles.gridHint}>Long-press a video to delete</Text>}
     </View>
   );
 
+  const onDelete = (item) => {
+    Alert.alert('Delete video?', 'This permanently removes the reel.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await deleteVideo(item.id);
+            setVideos((vs) => vs.filter((v) => v.id !== item.id));
+            await refreshUser();
+          } catch (_) {
+            Alert.alert('Failed', 'Could not delete video.');
+          }
+        },
+      },
+    ]);
+  };
+
   const renderTile = ({ item }) => (
-    <TouchableOpacity style={styles.tile} onPress={() => navigation.navigate('Video', { videoId: item.id, video: item })}>
+    <TouchableOpacity
+      style={styles.tile}
+      onPress={() => navigation.navigate('Video', { videoId: item.id, video: item })}
+      onLongPress={() => onDelete(item)}
+    >
       {item.thumbUrl ? (
         <Image source={{ uri: item.thumbUrl }} style={styles.tileImg} />
       ) : (
@@ -139,7 +162,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card, borderRadius: 16, paddingVertical: 16, marginBottom: 14,
   },
   stat: { alignItems: 'center' },
-  gridTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 24, marginBottom: 6 },
+  gridTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 24, marginBottom: 4 },
+  gridHint: { color: colors.textMuted, fontSize: 12, marginBottom: 6 },
   tile: { width: TILE, height: TILE * 1.4, backgroundColor: colors.card, borderRadius: 6, overflow: 'hidden', justifyContent: 'flex-end' },
   tileImg: { ...StyleSheet.absoluteFillObject, width: TILE, height: TILE * 1.4 },
   tileFallback: { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },

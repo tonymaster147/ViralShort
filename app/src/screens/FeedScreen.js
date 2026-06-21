@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import VideoCard from '../components/VideoCard';
 import CommentsSheet from '../components/CommentsSheet';
+import { Loading, EmptyState } from '../components/StateViews';
 import { fetchFeed, fetchFollowingFeed } from '../api/videos';
 import { colors } from '../theme/colors';
 
@@ -88,16 +89,17 @@ export default function FeedScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <Loading />
       ) : videos.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>🎬</Text>
-          <Text style={styles.emptyText}>
-            {tab === 'following' ? 'No videos from people you follow yet.' : 'No videos yet — be the first to post!'}
-          </Text>
-        </View>
+        <EmptyState
+          emoji="🎬"
+          title={tab === 'following' ? 'Nothing here yet' : 'No videos yet'}
+          subtitle={tab === 'following'
+            ? 'Follow some creators to see their reels here.'
+            : 'Be the first to post — tap ➕ Create!'}
+          actionLabel={tab === 'foryou' ? 'Create a reel' : undefined}
+          onAction={tab === 'foryou' ? () => navigation.getParent()?.navigate('Create') : undefined}
+        />
       ) : (
         <FlatList
           data={videos}

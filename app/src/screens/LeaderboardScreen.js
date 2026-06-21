@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { fetchLeaderboard } from '../api/economy';
 import { colors } from '../theme/colors';
 
@@ -52,6 +52,7 @@ export default function LeaderboardScreen({ navigation }) {
           keyExtractor={(l) => String(l.id)}
           renderItem={renderItem}
           contentContainerStyle={{ padding: 16 }}
+          refreshControl={<RefreshControl refreshing={false} onRefresh={() => load(period)} tintColor={colors.text} />}
           ListEmptyComponent={<Text style={styles.empty}>No diamonds earned yet. Send gifts to climb the board!</Text>}
         />
       )}

@@ -21,9 +21,18 @@ function publicUser(row) {
 
 async function signup(req, res, next) {
   try {
-    const { username, email, password } = req.body;
+    let { username, email, password } = req.body;
+    username = (username || '').trim();
+    email = (email || '').trim().toLowerCase();
+
     if (!username || !email || !password) {
-      return res.status(400).json({ ok: false, error: 'username, email and password are required' });
+      return res.status(400).json({ ok: false, error: 'Username, email and password are required' });
+    }
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      return res.status(400).json({ ok: false, error: 'Username must be 3-20 letters, numbers or underscores' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ ok: false, error: 'Please enter a valid email address' });
     }
     if (password.length < 6) {
       return res.status(400).json({ ok: false, error: 'Password must be at least 6 characters' });

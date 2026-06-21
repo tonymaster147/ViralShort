@@ -18,6 +18,30 @@ client.interceptors.request.use(async (config) => {
   return config;
 });
 
+// Simple event bridge so non-React modules can signal auth/network state.
+const listeners = { unauthorized: [], network: [] };
+export function onClientEvent(type, cb) {
+  listeners[type]?.push(cb);
+  return () => { listeners[type] = (listeners[type] || []).filter((f) => f !== cb); };
+}
+function emitClientEvent(type, payload) {
+  (listeners[type] || []).forEach((cb) => cb(payload));
+}
+
+// Global response handling: 401 -> sign out; network error -> offline signal.
+client.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (error.response?.status === 401) {
+      emitClientEvent('unauthorized');
+    } else if (!error.response) {
+      // No response = network/server unreachable.
+      emitClientEvent('network', { offline: true });
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default client;
 
 // Simple health check used on the Phase 0 screen.
