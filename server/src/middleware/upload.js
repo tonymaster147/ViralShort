@@ -46,9 +46,10 @@ function makeMixedUploader(subdir) {
 
 const uploadAvatar = makeUploader('avatars', 'image/');
 const uploadVideo = makeUploader('videos', 'video/');
-// Accepts fields: video (required), music (optional), voiceover (optional)
+// Accepts: video (single, gallery) OR clips[] (multi-clip camera), + music/voiceover
 const uploadVideoWithMusic = makeMixedUploader('videos').fields([
   { name: 'video', maxCount: 1 },
+  { name: 'clips', maxCount: 20 },
   { name: 'music', maxCount: 1 },
   { name: 'voiceover', maxCount: 1 },
 ]);

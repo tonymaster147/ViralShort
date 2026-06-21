@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
@@ -42,6 +42,7 @@ export default function CreateScreen({ navigation, route }) {
   const [allowRemix, setAllowRemix] = useState(true);
   const [allowDownload, setAllowDownload] = useState(false);
   const [draftId, setDraftId] = useState(null);
+  const [clips, setClips] = useState(null);     // multi-clip uris from the camera
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -65,6 +66,16 @@ export default function CreateScreen({ navigation, route }) {
   });
 
   useEffect(() => { if (player) player.muted = originalVolume === 0; }, [originalVolume, player]);
+
+  // Clips recorded in the custom camera.
+  useEffect(() => {
+    const incoming = route?.params?.clips;
+    if (incoming?.length) {
+      setClips(incoming);
+      setAsset({ uri: incoming[0] }); // preview the first clip
+      try { player.replace(incoming[0]); } catch (_) {}
+    }
+  }, [route?.params?.clips]);
 
   // Resume a draft if passed in.
   useEffect(() => {
@@ -123,6 +134,39 @@ export default function CreateScreen({ navigation, route }) {
     setCaption((c) => (c.endsWith(' ') || c === '' ? c : c + ' ') + '@' + username + ' ');
   };
 
+  // Open the schedule picker. Android needs a date step then a time step;
+  // iOS shows the inline datetime spinner.
+  const openScheduler = () => {
+    if (scheduledAt) { setScheduledAt(null); return; }
+    const initial = new Date(Date.now() + 3600000); // default +1h
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: initial,
+        mode: 'date',
+        minimumDate: new Date(Date.now() + 60000),
+        onChange: (e, date) => {
+          if (e.type !== 'set' || !date) return;
+          DateTimePickerAndroid.open({
+            value: date,
+            mode: 'time',
+            is24Hour: false,
+            onChange: (e2, time) => {
+              if (e2.type !== 'set' || !time) return;
+              const combined = new Date(date);
+              combined.setHours(time.getHours(), time.getMinutes(), 0, 0);
+              if (combined.getTime() < Date.now() + 60000) {
+                return Alert.alert('Pick a future time', 'Schedule must be at least a minute from now.');
+              }
+              setScheduledAt(combined);
+            },
+          });
+        },
+      });
+    } else {
+      setShowPicker(true);
+    }
+  };
+
   const pickFrom = async (source) => {
     const opts = {
       mediaTypes: ImagePicker.MediaTypeOptions?.Videos ?? 'videos',
@@ -157,6 +201,7 @@ export default function CreateScreen({ navigation, route }) {
     setProgress(0);
     try {
       await uploadVideo(asset, caption, setProgress, {
+        clips: clips && clips.length ? clips : null,
         filter: filter !== 'none' ? filter : null,
         soundId: !music && selectedSound ? selectedSound.id : null,
         music,
@@ -196,7 +241,7 @@ export default function CreateScreen({ navigation, route }) {
     setSelectedSound(null); setMusic(null); setVoiceover(null);
     setTrim({ start: 0, duration: null });
     setOriginalVolume(1); setMusicVolume(1); setVoiceVolume(1);
-    setCoverTime(0); setDraftId(null); setVideoDuration(null);
+    setCoverTime(0); setDraftId(null); setVideoDuration(null); setClips(null);
     setLocation(null); setScheduledAt(null);
   };
 
@@ -243,7 +288,7 @@ export default function CreateScreen({ navigation, route }) {
         </View>
       ) : (
         <View style={styles.pickRow}>
-          <TouchableOpacity style={styles.pickCard} onPress={() => pickFrom('camera')}>
+          <TouchableOpacity style={styles.pickCard} onPress={() => navigation.navigate('Camera')}>
             <Ionicons name="videocam" size={34} color={colors.text} />
             <Text style={styles.pickLabel}>Record</Text>
           </TouchableOpacity>
@@ -330,17 +375,18 @@ export default function CreateScreen({ navigation, route }) {
           </TouchableOpacity>
 
           {/* Schedule */}
-          <TouchableOpacity style={styles.optRow} onPress={() => (scheduledAt ? setScheduledAt(null) : setShowPicker(true))}>
+          <TouchableOpacity style={styles.optRow} onPress={openScheduler}>
             <Ionicons name="time-outline" size={20} color={colors.text} />
             <Text style={styles.optLabel}>
               {scheduledAt ? `Scheduled: ${scheduledAt.toLocaleString()}` : 'Schedule for later'}
             </Text>
             <Ionicons name={scheduledAt ? 'close' : 'chevron-forward'} size={18} color={colors.textMuted} />
           </TouchableOpacity>
-          {showPicker && (
+          {showPicker && Platform.OS === 'ios' && (
             <DateTimePicker
               value={scheduledAt || new Date(Date.now() + 3600000)}
               mode="datetime"
+              display="spinner"
               minimumDate={new Date(Date.now() + 60000)}
               onChange={(e, date) => {
                 setShowPicker(false);

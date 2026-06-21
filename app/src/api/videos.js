@@ -63,12 +63,10 @@ export async function setCover(videoId, coverTime) {
   return res.data;
 }
 
-// videoAsset: { uri, fileName?, mimeType? } from expo-image-picker
-// opts: { filter?, soundId?, music?, muteOriginal? }
-//   music: { uri, name?, mimeType? } from expo-document-picker (optional)
+// videoAsset: { uri, fileName?, mimeType? } from expo-image-picker, OR null when
+//   opts.clips (array of uris) is provided (multi-clip camera).
 export async function uploadVideo(videoAsset, caption, onProgress, opts = {}) {
   const form = new FormData();
-  const name = videoAsset.fileName || `video_${Date.now()}.mp4`;
   form.append('caption', caption || '');
   if (opts.filter) form.append('filter', opts.filter);
   if (opts.soundId) form.append('soundId', String(opts.soundId));
@@ -87,11 +85,18 @@ export async function uploadVideo(videoAsset, caption, onProgress, opts = {}) {
   if (opts.locationLng != null) form.append('locationLng', String(opts.locationLng));
   if (opts.scheduledAt) form.append('scheduledAt', opts.scheduledAt);
   if (opts.mentions) form.append('mentions', opts.mentions);
-  form.append('video', {
-    uri: videoAsset.uri,
-    name,
-    type: videoAsset.mimeType || 'video/mp4',
-  });
+  // Multi-clip (camera) takes precedence; else a single gallery/recorded video.
+  if (opts.clips?.length) {
+    opts.clips.forEach((uri, i) => {
+      form.append('clips', { uri, name: `clip_${i}_${Date.now()}.mp4`, type: 'video/mp4' });
+    });
+  } else if (videoAsset?.uri) {
+    form.append('video', {
+      uri: videoAsset.uri,
+      name: videoAsset.fileName || `video_${Date.now()}.mp4`,
+      type: videoAsset.mimeType || 'video/mp4',
+    });
+  }
   if (opts.music?.uri) {
     form.append('music', {
       uri: opts.music.uri,

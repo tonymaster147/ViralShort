@@ -2,7 +2,8 @@
 // Stores the creation state in AsyncStorage and copies the picked video into
 // the app's document directory so it survives app restarts.
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+// Use the legacy FS API (copyAsync/documentDirectory/getInfoAsync) — stable in SDK 54.
+import * as FileSystem from 'expo-file-system/legacy';
 
 const KEY = 'reel_drafts_v1';
 const DRAFT_DIR = FileSystem.documentDirectory + 'drafts/';

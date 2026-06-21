@@ -79,8 +79,25 @@ async function createVideo(req, res, next) {
   const path = require('path');
   const fs = require('fs');
   try {
-    // Support both upload.single (req.file) and upload.fields (req.files).
-    const videoFile = req.file || req.files?.video?.[0];
+    // Source video: a single 'video' (gallery) OR multiple 'clips' (camera) to join.
+    const clipFiles = req.files?.clips || [];
+    let videoFile = req.file || req.files?.video?.[0];
+
+    if (!videoFile && clipFiles.length > 0) {
+      if (clipFiles.length === 1) {
+        videoFile = clipFiles[0];
+      } else {
+        try {
+          const { joinClips } = require('../jobs/concatClips');
+          const joined = await joinClips(clipFiles.map((f) => f.path));
+          videoFile = { path: joined.outPath, filename: joined.outName };
+        } catch (joinErr) {
+          console.error('[concat] failed:', joinErr.message);
+          return res.status(500).json({ ok: false, error: 'Could not join clips' });
+        }
+      }
+    }
+
     const musicFile = req.files?.music?.[0];
     const voiceFile = req.files?.voiceover?.[0];
     if (!videoFile) return res.status(400).json({ ok: false, error: 'No video file uploaded' });

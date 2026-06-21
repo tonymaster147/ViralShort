@@ -27,6 +27,7 @@ import BuyCoinsScreen from '../screens/BuyCoinsScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 import ContestScreen from '../screens/ContestScreen';
 import DraftsScreen from '../screens/DraftsScreen';
+import CameraScreen from '../screens/CameraScreen';
 import { useSocket } from '../context/SocketContext';
 
 const navTheme = {
@@ -121,6 +122,7 @@ function CreateNavigator() {
   return (
     <CreateStack.Navigator screenOptions={stackOpts}>
       <CreateStack.Screen name="CreateMain" component={CreateScreen} options={{ headerShown: false }} />
+      <CreateStack.Screen name="Camera" component={CameraScreen} options={{ headerShown: false }} />
       <CreateStack.Screen name="Drafts" component={DraftsScreen} options={{ title: 'Drafts' }} />
     </CreateStack.Navigator>
   );
