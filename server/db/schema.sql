@@ -33,6 +33,10 @@ CREATE TABLE IF NOT EXISTS sounds (
   title       VARCHAR(150) NOT NULL,
   author_name VARCHAR(150) DEFAULT NULL,
   audio_path  VARCHAR(255) DEFAULT NULL,
+  duration    DECIMAL(8,2) DEFAULT NULL,
+  art_path    VARCHAR(255) DEFAULT NULL,
+  usage_count INT NOT NULL DEFAULT 0,
+  is_trending TINYINT(1) NOT NULL DEFAULT 0,
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -44,14 +48,38 @@ CREATE TABLE IF NOT EXISTS videos (
   user_id     INT NOT NULL,
   video_path  VARCHAR(255) NOT NULL,
   thumb_path  VARCHAR(255) DEFAULT NULL,
+  cover_path  VARCHAR(255) DEFAULT NULL,
+  hls_path    VARCHAR(255) DEFAULT NULL,
   caption     VARCHAR(500) DEFAULT NULL,
+  filter      VARCHAR(30)  DEFAULT NULL,
   sound_id    INT DEFAULT NULL,
+  duration    DECIMAL(8,2) DEFAULT NULL,
+  width       INT DEFAULT NULL,
+  height      INT DEFAULT NULL,
+  file_size   BIGINT DEFAULT NULL,
+  status      ENUM('processing','ready','failed') NOT NULL DEFAULT 'ready',
+  allow_comments TINYINT(1) NOT NULL DEFAULT 1,
+  allow_remix    TINYINT(1) NOT NULL DEFAULT 1,
+  allow_download TINYINT(1) NOT NULL DEFAULT 0,
   views       INT NOT NULL DEFAULT 0,
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_videos_user  FOREIGN KEY (user_id)  REFERENCES users(id)  ON DELETE CASCADE,
   CONSTRAINT fk_videos_sound FOREIGN KEY (sound_id) REFERENCES sounds(id) ON DELETE SET NULL,
   INDEX idx_videos_user (user_id),
-  INDEX idx_videos_created (created_at)
+  INDEX idx_videos_created (created_at),
+  INDEX idx_videos_status (status)
+) ENGINE=InnoDB;
+
+-- Server-side draft of an in-progress reel (cross-device sync; local drafts live on-device)
+CREATE TABLE IF NOT EXISTS drafts (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  user_id     INT NOT NULL,
+  payload     JSON NOT NULL,
+  thumb_path  VARCHAR(255) DEFAULT NULL,
+  updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_drafts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_drafts_user (user_id)
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------

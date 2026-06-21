@@ -4,6 +4,7 @@ import { Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import { Button } from '../components/ui';
 import { fetchUserVideos, deleteVideo } from '../api/videos';
 import { colors } from '../theme/colors';
@@ -22,21 +23,26 @@ function Stat({ value, label }) {
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout, refreshUser } = useAuth();
+  const { on } = useSocket();
   const [videos, setVideos] = useState([]);
+
+  const reload = useCallback(async () => {
+    if (!user) return;
+    try {
+      const vids = await fetchUserVideos(user.id);
+      setVideos(vids);
+      await refreshUser();
+    } catch (_) {}
+  }, [user?.id]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!user) return;
-      let alive = true;
-      (async () => {
-        try {
-          const vids = await fetchUserVideos(user.id);
-          if (alive) setVideos(vids);
-          await refreshUser(); // refresh counts/coins
-        } catch (_) {}
-      })();
-      return () => { alive = false; };
-    }, [user?.id])
+      reload();
+      // refresh when a just-uploaded reel finishes processing
+      const off1 = on('video:ready', () => reload());
+      const off2 = on('video:failed', () => reload());
+      return () => { off1 && off1(); off2 && off2(); };
+    }, [reload])
   );
 
   React.useLayoutEffect(() => {
@@ -118,15 +124,23 @@ export default function ProfileScreen({ navigation }) {
   const renderTile = ({ item }) => (
     <TouchableOpacity
       style={styles.tile}
-      onPress={() => navigation.navigate('Video', { videoId: item.id, video: item })}
+      onPress={() => item.status === 'ready'
+        ? navigation.navigate('Video', { videoId: item.id, video: item })
+        : null}
       onLongPress={() => onDelete(item)}
     >
-      {item.thumbUrl ? (
-        <Image source={{ uri: item.thumbUrl }} style={styles.tileImg} />
+      {item.coverUrl || item.thumbUrl ? (
+        <Image source={{ uri: item.coverUrl || item.thumbUrl }} style={styles.tileImg} />
       ) : (
         <View style={[styles.tileImg, styles.tileFallback]}>
           <Text style={styles.tilePlay}>▶</Text>
         </View>
+      )}
+      {item.status === 'processing' && (
+        <View style={styles.tileOverlay}><Text style={styles.tileBadge}>Processing…</Text></View>
+      )}
+      {item.status === 'failed' && (
+        <View style={styles.tileOverlay}><Text style={[styles.tileBadge, { color: colors.danger }]}>Failed</Text></View>
       )}
       <Text style={styles.tileViews}>👁 {item.views}</Text>
     </TouchableOpacity>
@@ -170,6 +184,8 @@ const styles = StyleSheet.create({
   tileFallback: { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   tilePlay: { color: colors.textMuted, fontSize: 28 },
   tileViews: { color: colors.text, fontSize: 11, padding: 4, fontWeight: '600' },
+  tileOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
+  tileBadge: { color: colors.text, fontWeight: '800', fontSize: 12 },
   empty: { color: colors.textMuted, textAlign: 'center', padding: 30 },
   statValue: { color: colors.text, fontSize: 20, fontWeight: '800' },
   statLabel: { color: colors.textMuted, fontSize: 12, marginTop: 2 },

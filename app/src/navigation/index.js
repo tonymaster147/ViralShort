@@ -26,6 +26,7 @@ import WalletScreen from '../screens/WalletScreen';
 import BuyCoinsScreen from '../screens/BuyCoinsScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 import ContestScreen from '../screens/ContestScreen';
+import DraftsScreen from '../screens/DraftsScreen';
 import { useSocket } from '../context/SocketContext';
 
 const navTheme = {
@@ -114,6 +115,17 @@ function DiscoverNavigator() {
   );
 }
 
+// Create stack (creator + drafts)
+const CreateStack = createNativeStackNavigator();
+function CreateNavigator() {
+  return (
+    <CreateStack.Navigator screenOptions={stackOpts}>
+      <CreateStack.Screen name="CreateMain" component={CreateScreen} options={{ headerShown: false }} />
+      <CreateStack.Screen name="Drafts" component={DraftsScreen} options={{ title: 'Drafts' }} />
+    </CreateStack.Navigator>
+  );
+}
+
 // Inbox stack (conversations + chat + tappable profiles/videos)
 const InboxStack = createNativeStackNavigator();
 function InboxNavigator() {
@@ -171,7 +183,7 @@ function MainNavigator() {
     >
       <Tab.Screen name="Feed" component={FeedNavigator} options={{ tabBarIcon: tabIcon('home') }} />
       <Tab.Screen name="Discover" component={DiscoverNavigator} options={{ tabBarIcon: tabIcon('search') }} />
-      <Tab.Screen name="Create" component={CreateScreen} options={{ tabBarIcon: createIcon() }} />
+      <Tab.Screen name="Create" component={CreateNavigator} options={{ tabBarIcon: createIcon() }} />
       <Tab.Screen
         name="Inbox"
         component={InboxNavigator}

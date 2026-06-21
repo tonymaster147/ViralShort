@@ -7,10 +7,18 @@ function publicVideo(row, viewerId) {
     id: row.id,
     videoUrl: fileUrl(row.video_path),
     thumbUrl: fileUrl(row.thumb_path),
+    coverUrl: fileUrl(row.cover_path),
     caption: row.caption,
     filter: row.filter,
     soundId: row.sound_id,
     soundTitle: row.sound_title || null,
+    status: row.status || 'ready',
+    duration: row.duration != null ? Number(row.duration) : null,
+    width: row.width || null,
+    height: row.height || null,
+    allowComments: row.allow_comments == null ? true : !!row.allow_comments,
+    allowRemix: row.allow_remix == null ? true : !!row.allow_remix,
+    allowDownload: !!row.allow_download,
     views: row.views,
     likeCount: row.like_count || 0,
     commentCount: row.comment_count || 0,
@@ -81,6 +89,11 @@ async function createVideo(req, res, next) {
     // Music trim: which slice of the uploaded audio to use (seconds).
     const musicStart = req.body.musicStart != null ? Math.max(0, Number(req.body.musicStart)) : 0;
     const musicDuration = req.body.musicDuration != null ? Math.max(0, Number(req.body.musicDuration)) : null;
+    // Publish options
+    const coverTime = req.body.coverTime != null ? Math.max(0, Number(req.body.coverTime)) : 0;
+    const allowComments = req.body.allowComments != null ? (String(req.body.allowComments) === 'true' ? 1 : 0) : 1;
+    const allowRemix = req.body.allowRemix != null ? (String(req.body.allowRemix) === 'true' ? 1 : 0) : 1;
+    const allowDownload = req.body.allowDownload != null ? (String(req.body.allowDownload) === 'true' ? 1 : 0) : 0;
 
     let finalFilename = videoFile.filename;
     let finalPath = videoFile.path;
@@ -112,29 +125,55 @@ async function createVideo(req, res, next) {
       }
     }
 
-    // Generate a thumbnail from the final video (best-effort).
-    let thumbPath = null;
-    try {
-      const { generateThumbnail } = require('../jobs/thumbnail');
-      const thumbName = await generateThumbnail(finalPath);
-      if (thumbName) thumbPath = `thumbs/${thumbName}`;
-    } catch (thumbErr) {
-      console.error('[thumb] error:', thumbErr.message);
-    }
-
+    // Insert immediately as 'processing' so the request returns fast; the
+    // heavy ffmpeg work (compress, cover, thumbnail, probe) runs in background.
     const relPath = `videos/${finalFilename}`;
     const [result] = await pool.query(
-      'INSERT INTO videos (user_id, video_path, thumb_path, caption, filter, sound_id) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.userId, relPath, thumbPath, caption, filter, soundId]
+      `INSERT INTO videos
+         (user_id, video_path, caption, filter, sound_id, status, allow_comments, allow_remix, allow_download)
+       VALUES (?, ?, ?, ?, ?, 'processing', ?, ?, ?)`,
+      [req.userId, relPath, caption, filter, soundId, allowComments, allowRemix, allowDownload]
     );
+    const videoId = result.insertId;
 
-    await attachHashtags(result.insertId, caption);
+    await attachHashtags(videoId, caption);
 
-    const params = req.userId ? [req.userId, result.insertId] : [result.insertId];
+    // Respond now with the processing video.
+    const params = req.userId ? [req.userId, videoId] : [videoId];
     const [rows] = await pool.query(`${baseSelect(req.userId)} WHERE v.id = ?`, params);
     res.status(201).json({ ok: true, video: publicVideo(rows[0], req.userId) });
+
+    // --- Background processing ---
+    processInBackground(req.app, videoId, finalPath, coverTime, req.userId).catch((e) =>
+      console.error('[processor] background error:', e.message)
+    );
   } catch (err) {
     next(err);
+  }
+}
+
+// Compress + cover + thumbnail + probe, then mark the video ready and notify.
+async function processInBackground(app, videoId, inputPath, coverTime, ownerId) {
+  try {
+    const { processVideo } = require('../jobs/videoProcessor');
+    const out = await processVideo(inputPath, { coverTime });
+    await pool.query(
+      `UPDATE videos SET video_path=?, thumb_path=?, cover_path=?, duration=?, width=?, height=?, file_size=?, status='ready'
+       WHERE id=?`,
+      [out.videoRel, out.thumbRel, out.coverRel, out.duration, out.width, out.height, out.fileSize, videoId]
+    );
+    // Tell the owner their reel is live (feed can refresh / swap the processing card).
+    try {
+      const io = app.get('io');
+      if (io) io.to(`user:${ownerId}`).emit('video:ready', { videoId });
+    } catch (_) {}
+  } catch (err) {
+    console.error('[processor] failed for video', videoId, err.message);
+    await pool.query("UPDATE videos SET status='failed' WHERE id=?", [videoId]).catch(() => {});
+    try {
+      const io = app.get('io');
+      if (io) io.to(`user:${ownerId}`).emit('video:failed', { videoId });
+    } catch (_) {}
   }
 }
 
@@ -147,7 +186,7 @@ async function getFeed(req, res, next) {
 
     const params = req.userId ? [req.userId, limit, offset] : [limit, offset];
     const [rows] = await pool.query(
-      `${baseSelect(req.userId)} ORDER BY v.created_at DESC LIMIT ? OFFSET ?`,
+      `${baseSelect(req.userId)} WHERE v.status = 'ready' ORDER BY v.created_at DESC LIMIT ? OFFSET ?`,
       params
     );
     res.json({ ok: true, page, videos: rows.map((r) => publicVideo(r, req.userId)) });
@@ -165,7 +204,7 @@ async function getFollowingFeed(req, res, next) {
 
     const [rows] = await pool.query(
       `${baseSelect(req.userId)}
-       WHERE v.user_id IN (SELECT following_id FROM follows WHERE follower_id = ?)
+       WHERE v.status = 'ready' AND v.user_id IN (SELECT following_id FROM follows WHERE follower_id = ?)
        ORDER BY v.created_at DESC LIMIT ? OFFSET ?`,
       [req.userId, req.userId, limit, offset]
     );
@@ -176,11 +215,14 @@ async function getFollowingFeed(req, res, next) {
 }
 
 // GET /api/videos/user/:id  (a user's videos)
+// Owner sees their own processing/failed videos too; others see only 'ready'.
 async function getUserVideos(req, res, next) {
   try {
+    const isOwner = req.userId && Number(req.userId) === Number(req.params.id);
+    const statusClause = isOwner ? '' : "AND v.status = 'ready'";
     const params = req.userId ? [req.userId, req.params.id] : [req.params.id];
     const [rows] = await pool.query(
-      `${baseSelect(req.userId)} WHERE v.user_id = ? ORDER BY v.created_at DESC`,
+      `${baseSelect(req.userId)} WHERE v.user_id = ? ${statusClause} ORDER BY v.created_at DESC`,
       params
     );
     res.json({ ok: true, videos: rows.map((r) => publicVideo(r, req.userId)) });
@@ -231,6 +273,29 @@ async function deleteVideo(req, res, next) {
   }
 }
 
+// POST /api/videos/:id/cover  body: { coverTime }  (owner only)
+// Regenerate the cover (and thumbnail) from a chosen timestamp.
+async function setCover(req, res, next) {
+  try {
+    const [[video]] = await pool.query('SELECT user_id, video_path FROM videos WHERE id = ?', [req.params.id]);
+    if (!video) return res.status(404).json({ ok: false, error: 'Video not found' });
+    if (video.user_id !== req.userId) return res.status(403).json({ ok: false, error: 'Not your video' });
+
+    const path = require('path');
+    const coverTime = Math.max(0, Number(req.body.coverTime) || 0);
+    const abs = path.join(__dirname, '..', '..', 'uploads', video.video_path.replace(/^videos\//, 'videos/'));
+    const { extractCover, extractThumb } = require('../jobs/videoProcessor');
+    const [coverRel, thumbRel] = await Promise.all([
+      extractCover(abs, coverTime),
+      extractThumb(abs, Math.max(1, coverTime)),
+    ]);
+    await pool.query('UPDATE videos SET cover_path=?, thumb_path=? WHERE id=?', [coverRel, thumbRel, req.params.id]);
+    res.json({ ok: true, coverUrl: fileUrl(coverRel), thumbUrl: fileUrl(thumbRel) });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/videos/sounds  -> list available soundtracks
 async function getSounds(req, res, next) {
   try {
@@ -250,5 +315,6 @@ module.exports = {
   addView,
   deleteVideo,
   getSounds,
+  setCover,
   publicVideo,
 };

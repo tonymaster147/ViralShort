@@ -7,13 +7,15 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Slider from '@react-native-community/slider';
 import { Button } from '../components/ui';
 import AudioTrimmer from '../components/AudioTrimmer';
 import { uploadVideo, fetchSounds } from '../api/videos';
+import { saveDraft } from '../api/drafts';
 import { FILTERS, filterOverlay } from '../theme/filters';
 import { colors } from '../theme/colors';
 
-export default function CreateScreen({ navigation }) {
+export default function CreateScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const [asset, setAsset] = useState(null);
   const [caption, setCaption] = useState('');
@@ -24,6 +26,11 @@ export default function CreateScreen({ navigation }) {
   const [muteOriginal, setMuteOriginal] = useState(false);
   const [trim, setTrim] = useState({ start: 0, duration: null }); // music slice
   const [videoDuration, setVideoDuration] = useState(null);
+  const [coverTime, setCoverTime] = useState(0);     // cover frame timestamp
+  const [allowComments, setAllowComments] = useState(true);
+  const [allowRemix, setAllowRemix] = useState(true);
+  const [allowDownload, setAllowDownload] = useState(false);
+  const [draftId, setDraftId] = useState(null);      // set when resuming a draft
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -42,6 +49,30 @@ export default function CreateScreen({ navigation }) {
   useEffect(() => {
     fetchSounds().then(setSounds).catch(() => {});
   }, []);
+
+  // Resume a draft if one was passed in.
+  useEffect(() => {
+    const draft = route?.params?.draft;
+    if (draft) {
+      const s = draft.state || {};
+      setDraftId(draft.id);
+      setAsset({ uri: draft.videoUri });
+      setCaption(s.caption || '');
+      setFilter(s.filter || 'none');
+      setSoundId(s.soundId || null);
+      setCoverTime(s.coverTime || 0);
+      setAllowComments(s.allowComments !== false);
+      setAllowRemix(s.allowRemix !== false);
+      setAllowDownload(!!s.allowDownload);
+      try { player.replace(draft.videoUri); } catch (_) {}
+    }
+  }, [route?.params?.draft]);
+
+  // Seek the preview to the cover frame when the user scrubs.
+  const onScrubCover = (t) => {
+    setCoverTime(t);
+    try { player.pause(); player.currentTime = t; } catch (_) {}
+  };
 
   // Autoplay + read duration whenever an asset is set.
   useEffect(() => {
@@ -106,8 +137,14 @@ export default function CreateScreen({ navigation }) {
         muteOriginal,
         musicStart: music ? trim.start : null,
         musicDuration: music ? trim.duration : null,
+        coverTime,
+        allowComments,
+        allowRemix,
+        allowDownload,
       });
-      Alert.alert('Posted! 🎉', music ? 'Your reel with custom music is live.' : 'Your reel is live.');
+      // a published draft can be discarded
+      if (draftId) { try { await (await import('../api/drafts')).deleteDraft(draftId); } catch (_) {} }
+      Alert.alert('Posted! 🎉', 'Your reel is processing and will appear shortly (check your profile).');
       setAsset(null);
       setCaption('');
       setFilter('none');
@@ -116,6 +153,8 @@ export default function CreateScreen({ navigation }) {
       setMuteOriginal(false);
       setTrim({ start: 0, duration: null });
       setVideoDuration(null);
+      setCoverTime(0);
+      setDraftId(null);
       navigation.navigate('Feed');
     } catch (err) {
       const msg = err.response?.data?.error
@@ -123,6 +162,21 @@ export default function CreateScreen({ navigation }) {
       Alert.alert('Upload failed', msg);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const onSaveDraft = async () => {
+    if (!asset) return Alert.alert('Pick a video first');
+    try {
+      const saved = await saveDraft(
+        { caption, filter, soundId, coverTime, allowComments, allowRemix, allowDownload },
+        asset.uri,
+        draftId
+      );
+      setDraftId(saved.id);
+      Alert.alert('Draft saved', 'Find it later in Create → Drafts.');
+    } catch (_) {
+      Alert.alert('Could not save draft');
     }
   };
 
@@ -139,7 +193,12 @@ export default function CreateScreen({ navigation }) {
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
     >
-      <Text style={styles.title}>New Reel</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>New Reel</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Drafts')}>
+          <Text style={styles.draftsLink}>Drafts</Text>
+        </TouchableOpacity>
+      </View>
 
       {asset ? (
         <View style={styles.previewWrap}>
@@ -240,6 +299,38 @@ export default function CreateScreen({ navigation }) {
         </>
       )}
 
+      {asset && videoDuration ? (
+        <>
+          {/* Cover frame picker */}
+          <Text style={styles.label}>🖼️ Cover frame</Text>
+          <Slider
+            minimumValue={0}
+            maximumValue={Math.max(0.1, videoDuration)}
+            value={coverTime}
+            onValueChange={onScrubCover}
+            minimumTrackTintColor={colors.primary}
+            maximumTrackTintColor={colors.border}
+            thumbTintColor={colors.primary}
+          />
+          <Text style={styles.hint}>Drag to choose the frame shown as your reel's cover ({coverTime.toFixed(1)}s).</Text>
+
+          {/* Permissions */}
+          <Text style={[styles.label, { marginTop: 10 }]}>Settings</Text>
+          {[
+            ['Allow comments', allowComments, setAllowComments],
+            ['Allow remix', allowRemix, setAllowRemix],
+            ['Allow downloads', allowDownload, setAllowDownload],
+          ].map(([lbl, val, set]) => (
+            <TouchableOpacity key={lbl} style={styles.toggleRow} onPress={() => set((v) => !v)}>
+              <View style={[styles.checkbox, val && styles.checkboxOn]}>
+                {val && <Text style={styles.check}>✓</Text>}
+              </View>
+              <Text style={styles.toggleLabel}>{lbl}</Text>
+            </TouchableOpacity>
+          ))}
+        </>
+      ) : null}
+
       <Text style={styles.label}>Caption</Text>
       <TextInput
         style={styles.captionInput}
@@ -259,6 +350,12 @@ export default function CreateScreen({ navigation }) {
       ) : null}
 
       <Button title="Post Reel" onPress={onUpload} loading={uploading} disabled={!asset} />
+      {asset ? (
+        <View style={{ height: 10 }} />
+      ) : null}
+      {asset ? (
+        <Button title="Save draft" onPress={onSaveDraft} variant="outline" />
+      ) : null}
     </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -266,7 +363,9 @@ export default function CreateScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  title: { color: colors.text, fontSize: 24, fontWeight: '800', marginBottom: 18 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
+  title: { color: colors.text, fontSize: 24, fontWeight: '800' },
+  draftsLink: { color: colors.primary, fontWeight: '800', fontSize: 15 },
   pickRow: { flexDirection: 'row', gap: 14, marginBottom: 20 },
   pickCard: {
     flex: 1, backgroundColor: colors.card, borderRadius: 16, paddingVertical: 36,

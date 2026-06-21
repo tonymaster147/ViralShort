@@ -10,6 +10,7 @@ const {
   addView,
   deleteVideo,
   getSounds,
+  setCover,
 } = require('../controllers/videoController');
 const {
   toggleLike, getComments, addComment,
@@ -22,6 +23,7 @@ router.get('/sounds', getSounds);
 router.get('/feed', optionalAuth, getFeed);
 router.get('/following', requireAuth, getFollowingFeed);
 router.get('/user/:id', optionalAuth, getUserVideos);
+router.post('/:id/cover', requireAuth, setCover);
 router.post('/:id/view', addView);
 router.get('/:id', optionalAuth, getVideo);
 router.delete('/:id', requireAuth, deleteVideo);

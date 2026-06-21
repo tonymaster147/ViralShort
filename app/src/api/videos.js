@@ -33,6 +33,16 @@ export async function deleteVideo(videoId) {
   return res.data;
 }
 
+export async function fetchVideo(videoId) {
+  const res = await client.get(`/videos/${videoId}`);
+  return res.data.video;
+}
+
+export async function setCover(videoId, coverTime) {
+  const res = await client.post(`/videos/${videoId}/cover`, { coverTime });
+  return res.data;
+}
+
 // videoAsset: { uri, fileName?, mimeType? } from expo-image-picker
 // opts: { filter?, soundId?, music?, muteOriginal? }
 //   music: { uri, name?, mimeType? } from expo-document-picker (optional)
@@ -45,6 +55,10 @@ export async function uploadVideo(videoAsset, caption, onProgress, opts = {}) {
   if (opts.muteOriginal) form.append('muteOriginal', 'true');
   if (opts.musicStart != null) form.append('musicStart', String(opts.musicStart));
   if (opts.musicDuration != null) form.append('musicDuration', String(opts.musicDuration));
+  if (opts.coverTime != null) form.append('coverTime', String(opts.coverTime));
+  if (opts.allowComments != null) form.append('allowComments', String(opts.allowComments));
+  if (opts.allowRemix != null) form.append('allowRemix', String(opts.allowRemix));
+  if (opts.allowDownload != null) form.append('allowDownload', String(opts.allowDownload));
   form.append('video', {
     uri: videoAsset.uri,
     name,

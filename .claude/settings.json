@@ -39,7 +39,15 @@
       "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; SELECT id, thumb_path FROM videos;\")",
       "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; DELETE FROM videos WHERE id IN \\(12,13,17\\); SELECT COUNT\\(*\\) AS videos_left FROM videos;\")",
       "Bash(node -e \"console.log\\(require\\('@expo/vector-icons/package.json'\\).version\\)\")",
-      "Bash(node -e \"console.log\\('vector-icons:', require\\('@expo/vector-icons/package.json'\\).version\\)\")"
+      "Bash(node -e \"console.log\\('vector-icons:', require\\('@expo/vector-icons/package.json'\\).version\\)\")",
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"SELECT VERSION\\(\\);\")",
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; SHOW COLUMNS FROM videos;\")",
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root viralshort)",
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; SHOW TABLES LIKE 'drafts';\")",
+      "Bash(node -e \"const p=require\\('ffprobe-static'\\); const fs=require\\('fs'\\); console.log\\('ffprobe:', p.path, 'exists:', fs.existsSync\\(p.path\\)\\)\")",
+      "Bash(node -e \"try{console.log\\('file-system:',require\\('expo-file-system/package.json'\\).version\\)}catch\\(e\\){console.log\\('file-system: MISSING'\\)}\")",
+      "Bash(node -e \"try{console.log\\('async-storage:',require\\('@react-native-async-storage/async-storage/package.json'\\).version\\)}catch\\(e\\){console.log\\('async-storage: MISSING'\\)}\")",
+      "Bash(node -e \"try{console.log\\('slider:',require\\('@react-native-community/slider/package.json'\\).version\\)}catch\\(e\\){console.log\\('slider: MISSING'\\)}\")"
     ],
     "additionalDirectories": [
       "e:\\my projects\\viralshort\\server\\src",
