@@ -15,7 +15,9 @@
       "Bash(git add *)",
       "Bash(git commit -m 'Phase 0: ViralShort foundation — Express API, MySQL schema, Expo app with health check *)",
       "Bash(git remote *)",
-      "Bash(timeout 60 git push -u origin main)"
+      "Bash(timeout 60 git push -u origin main)",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"require.resolve\\('babel-preset-expo'\\); console.log\\('babel-preset-expo OK'\\);\")"
     ],
     "additionalDirectories": [
       "e:\\my projects\\viralshort\\server\\src"

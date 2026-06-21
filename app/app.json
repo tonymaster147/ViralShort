@@ -4,8 +4,11 @@
     "slug": "viralshort",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
     "assetBundlePatterns": ["**/*"],
@@ -13,8 +16,14 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.viralshort.app"
+      "package": "com.viralshort.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      }
     },
-    "web": {}
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
   }
 }
