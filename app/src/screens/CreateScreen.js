@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
@@ -12,6 +14,7 @@ import { Button } from '../components/ui';
 import AudioTrimmer from '../components/AudioTrimmer';
 import AudioPanel from '../components/AudioPanel';
 import VoiceOverRecorder from '../components/VoiceOverRecorder';
+import TagPeopleModal from '../components/TagPeopleModal';
 import { uploadVideo } from '../api/videos';
 import { saveDraft, deleteDraft } from '../api/drafts';
 import { FILTERS, filterOverlay } from '../theme/filters';
@@ -41,6 +44,13 @@ export default function CreateScreen({ navigation, route }) {
   const [draftId, setDraftId] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  // Publish extras
+  const [location, setLocation] = useState(null);   // { name, lat, lng }
+  const [scheduledAt, setScheduledAt] = useState(null); // Date | null
+  const [showPicker, setShowPicker] = useState(false);
+  const [tagOpen, setTagOpen] = useState(false);
+  const [locating, setLocating] = useState(false);
 
   // The added audio source (music or catalog) used for trimming/preview.
   const addedAudio = music
@@ -93,6 +103,26 @@ export default function CreateScreen({ navigation, route }) {
     try { player.pause(); player.currentTime = t; } catch (_) {}
   };
 
+  const addLocation = async () => {
+    setLocating(true);
+    try {
+      const perm = await Location.requestForegroundPermissionsAsync();
+      if (!perm.granted) { Alert.alert('Permission needed', 'Allow location access to tag your place.'); return; }
+      const pos = await Location.getCurrentPositionAsync({});
+      const [place] = await Location.reverseGeocodeAsync(pos.coords);
+      const name = place
+        ? [place.name, place.city || place.subregion, place.region].filter(Boolean).slice(0, 2).join(', ')
+        : `${pos.coords.latitude.toFixed(3)}, ${pos.coords.longitude.toFixed(3)}`;
+      setLocation({ name, lat: pos.coords.latitude, lng: pos.coords.longitude });
+    } catch (_) {
+      Alert.alert('Could not get location');
+    } finally { setLocating(false); }
+  };
+
+  const onPickPerson = (username) => {
+    setCaption((c) => (c.endsWith(' ') || c === '' ? c : c + ' ') + '@' + username + ' ');
+  };
+
   const pickFrom = async (source) => {
     const opts = {
       mediaTypes: ImagePicker.MediaTypeOptions?.Videos ?? 'videos',
@@ -138,9 +168,18 @@ export default function CreateScreen({ navigation, route }) {
         voiceVolume,
         coverTime,
         allowComments, allowRemix, allowDownload,
+        locationName: location?.name || null,
+        locationLat: location?.lat ?? null,
+        locationLng: location?.lng ?? null,
+        scheduledAt: scheduledAt ? scheduledAt.toISOString() : null,
       });
       if (draftId) { try { await deleteDraft(draftId); } catch (_) {} }
-      Alert.alert('Posted! 🎉', 'Your reel is processing and will appear shortly (check your profile).');
+      Alert.alert(
+        scheduledAt ? 'Scheduled! 🗓️' : 'Posted! 🎉',
+        scheduledAt
+          ? `Your reel will publish on ${scheduledAt.toLocaleString()}.`
+          : 'Your reel is processing and will appear shortly (check your profile).'
+      );
       resetAll();
       navigation.navigate('Feed');
     } catch (err) {
@@ -158,6 +197,7 @@ export default function CreateScreen({ navigation, route }) {
     setTrim({ start: 0, duration: null });
     setOriginalVolume(1); setMusicVolume(1); setVoiceVolume(1);
     setCoverTime(0); setDraftId(null); setVideoDuration(null);
+    setLocation(null); setScheduledAt(null);
   };
 
   const onSaveDraft = async () => {
@@ -272,6 +312,42 @@ export default function CreateScreen({ navigation, route }) {
               <Text style={styles.toggleLabel}>{lbl}</Text>
             </TouchableOpacity>
           ))}
+
+          {/* Tag people */}
+          <TouchableOpacity style={styles.optRow} onPress={() => setTagOpen(true)}>
+            <Ionicons name="person-add-outline" size={20} color={colors.text} />
+            <Text style={styles.optLabel}>Tag people</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          {/* Location */}
+          <TouchableOpacity style={styles.optRow} onPress={location ? () => setLocation(null) : addLocation}>
+            <Ionicons name="location-outline" size={20} color={colors.text} />
+            <Text style={styles.optLabel} numberOfLines={1}>
+              {locating ? 'Getting location…' : location ? location.name : 'Add location'}
+            </Text>
+            <Ionicons name={location ? 'close' : 'chevron-forward'} size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          {/* Schedule */}
+          <TouchableOpacity style={styles.optRow} onPress={() => (scheduledAt ? setScheduledAt(null) : setShowPicker(true))}>
+            <Ionicons name="time-outline" size={20} color={colors.text} />
+            <Text style={styles.optLabel}>
+              {scheduledAt ? `Scheduled: ${scheduledAt.toLocaleString()}` : 'Schedule for later'}
+            </Text>
+            <Ionicons name={scheduledAt ? 'close' : 'chevron-forward'} size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+          {showPicker && (
+            <DateTimePicker
+              value={scheduledAt || new Date(Date.now() + 3600000)}
+              mode="datetime"
+              minimumDate={new Date(Date.now() + 60000)}
+              onChange={(e, date) => {
+                setShowPicker(false);
+                if (e.type === 'set' && date) setScheduledAt(date);
+              }}
+            />
+          )}
         </>
       ) : null}
 
@@ -300,6 +376,7 @@ export default function CreateScreen({ navigation, route }) {
         onSelectDevice={onSelectDevice}
         onSelectOriginal={onSelectOriginal}
       />
+      <TagPeopleModal visible={tagOpen} onClose={() => setTagOpen(false)} onPick={onPickPerson} />
     </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -347,6 +424,8 @@ const styles = StyleSheet.create({
   checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   checkboxOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   toggleLabel: { color: colors.text, fontWeight: '600' },
+  optRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 14, marginTop: 10, borderWidth: 1, borderColor: colors.border },
+  optLabel: { color: colors.text, fontWeight: '600', flex: 1 },
   hint: { color: colors.textMuted, fontSize: 12, marginBottom: 16, marginTop: 2 },
   captionInput: { backgroundColor: colors.card, borderRadius: 12, padding: 14, color: colors.text, minHeight: 80, textAlignVertical: 'top', borderWidth: 1, borderColor: colors.border, marginBottom: 18 },
   progressWrap: { height: 26, backgroundColor: colors.card, borderRadius: 13, overflow: 'hidden', marginBottom: 14, justifyContent: 'center' },

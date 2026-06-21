@@ -156,6 +156,12 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
           )}
         </View>
         {video.caption ? <Text style={styles.caption}>{video.caption}</Text> : null}
+        {video.locationName ? (
+          <View style={styles.locRow}>
+            <Ionicons name="location" size={12} color={colors.text} />
+            <Text style={styles.loc}>{video.locationName}</Text>
+          </View>
+        ) : null}
         {video.soundTitle ? <Text style={styles.sound}>♪ {video.soundTitle}</Text> : null}
         <Text style={styles.views}>👁 {views} views</Text>
       </View>
@@ -192,5 +198,7 @@ const styles = StyleSheet.create({
   followText: { color: colors.text, fontWeight: '700', fontSize: 12 },
   caption: { color: colors.text, fontSize: 14, marginBottom: 6 },
   sound: { color: colors.text, fontSize: 12, marginBottom: 4 },
+  locRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
+  loc: { color: colors.text, fontSize: 12 },
   views: { color: colors.textMuted, fontSize: 12 },
 });

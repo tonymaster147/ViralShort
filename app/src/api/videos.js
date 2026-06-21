@@ -82,6 +82,11 @@ export async function uploadVideo(videoAsset, caption, onProgress, opts = {}) {
   if (opts.originalVolume != null) form.append('originalVolume', String(opts.originalVolume));
   if (opts.musicVolume != null) form.append('musicVolume', String(opts.musicVolume));
   if (opts.voiceVolume != null) form.append('voiceVolume', String(opts.voiceVolume));
+  if (opts.locationName) form.append('locationName', opts.locationName);
+  if (opts.locationLat != null) form.append('locationLat', String(opts.locationLat));
+  if (opts.locationLng != null) form.append('locationLng', String(opts.locationLng));
+  if (opts.scheduledAt) form.append('scheduledAt', opts.scheduledAt);
+  if (opts.mentions) form.append('mentions', opts.mentions);
   form.append('video', {
     uri: videoAsset.uri,
     name,

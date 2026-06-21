@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; SHOW COLUMNS FROM videos LIKE 'location%'; SHOW COLUMNS FROM videos LIKE 'scheduled_at'; SHOW COLUMNS FROM videos LIKE 'status'; SHOW TABLES LIKE 'mentions';\")"
+    ]
+  }
+}

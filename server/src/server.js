@@ -3,6 +3,7 @@ const app = require('./app');
 const { checkConnection } = require('./config/db');
 const { attachSockets } = require('./sockets');
 const { startContestEngine } = require('./jobs/contestEngine');
+const { startScheduledPublisher } = require('./jobs/scheduledPublisher');
 require('dotenv').config();
 
 const PORT = Number(process.env.PORT) || 4000;
@@ -29,6 +30,11 @@ attachSockets(server, app);
       startContestEngine(app);
     } catch (e) {
       console.error('[contest] failed to start:', e.message);
+    }
+    try {
+      startScheduledPublisher(app);
+    } catch (e) {
+      console.error('[scheduler] failed to start:', e.message);
     }
   });
 })();

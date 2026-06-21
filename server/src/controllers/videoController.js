@@ -19,6 +19,8 @@ function publicVideo(row, viewerId) {
     allowComments: row.allow_comments == null ? true : !!row.allow_comments,
     allowRemix: row.allow_remix == null ? true : !!row.allow_remix,
     allowDownload: !!row.allow_download,
+    locationName: row.location_name || null,
+    scheduledAt: row.scheduled_at || null,
     views: row.views,
     likeCount: row.like_count || 0,
     commentCount: row.comment_count || 0,
@@ -100,6 +102,15 @@ async function createVideo(req, res, next) {
     const allowComments = req.body.allowComments != null ? (String(req.body.allowComments) === 'true' ? 1 : 0) : 1;
     const allowRemix = req.body.allowRemix != null ? (String(req.body.allowRemix) === 'true' ? 1 : 0) : 1;
     const allowDownload = req.body.allowDownload != null ? (String(req.body.allowDownload) === 'true' ? 1 : 0) : 0;
+    // Location + schedule
+    const locationName = req.body.locationName ? String(req.body.locationName).slice(0, 150) : null;
+    const locationLat = req.body.locationLat != null && req.body.locationLat !== '' ? Number(req.body.locationLat) : null;
+    const locationLng = req.body.locationLng != null && req.body.locationLng !== '' ? Number(req.body.locationLng) : null;
+    let scheduledAt = null;
+    if (req.body.scheduledAt) {
+      const d = new Date(req.body.scheduledAt);
+      if (!isNaN(d.getTime()) && d.getTime() > Date.now() + 30000) scheduledAt = d; // must be >30s in the future
+    }
 
     // Resolve the added music source: device music file takes precedence,
     // else a catalog sound that has an audio file.
@@ -149,21 +160,24 @@ async function createVideo(req, res, next) {
     const relPath = `videos/${finalFilename}`;
     const [result] = await pool.query(
       `INSERT INTO videos
-         (user_id, video_path, caption, filter, sound_id, status, allow_comments, allow_remix, allow_download, has_voiceover)
-       VALUES (?, ?, ?, ?, ?, 'processing', ?, ?, ?, ?)`,
-      [req.userId, relPath, caption, filter, soundId, allowComments, allowRemix, allowDownload, voiceFile ? 1 : 0]
+         (user_id, video_path, caption, filter, sound_id, status, allow_comments, allow_remix, allow_download,
+          has_voiceover, location_name, location_lat, location_lng, scheduled_at)
+       VALUES (?, ?, ?, ?, ?, 'processing', ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, relPath, caption, filter, soundId, allowComments, allowRemix, allowDownload,
+       voiceFile ? 1 : 0, locationName, locationLat, locationLng, scheduledAt]
     );
     const videoId = result.insertId;
 
     await attachHashtags(videoId, caption);
+    await attachMentions(req.app, videoId, caption, req.body.mentions, req.userId);
 
     // Respond now with the processing video.
     const params = req.userId ? [req.userId, videoId] : [videoId];
     const [rows] = await pool.query(`${baseSelect(req.userId)} WHERE v.id = ?`, params);
     res.status(201).json({ ok: true, video: publicVideo(rows[0], req.userId) });
 
-    // --- Background processing ---
-    processInBackground(req.app, videoId, finalPath, coverTime, req.userId).catch((e) =>
+    // --- Background processing --- (final status: 'scheduled' if scheduled, else 'ready')
+    processInBackground(req.app, videoId, finalPath, coverTime, req.userId, !!scheduledAt).catch((e) =>
       console.error('[processor] background error:', e.message)
     );
   } catch (err) {
@@ -171,20 +185,37 @@ async function createVideo(req, res, next) {
   }
 }
 
-// Compress + cover + thumbnail + probe, then mark the video ready and notify.
-async function processInBackground(app, videoId, inputPath, coverTime, ownerId) {
+// Parse @mentions from the caption + explicit list, store them, and notify.
+async function attachMentions(app, videoId, caption, explicit, actorId) {
+  const { notify } = require('./notificationHelper');
+  const names = new Set();
+  (caption?.match(/@([a-zA-Z0-9_]+)/g) || []).forEach((m) => names.add(m.slice(1).toLowerCase()));
+  if (explicit) {
+    String(explicit).split(',').map((s) => s.trim().replace(/^@/, '').toLowerCase()).filter(Boolean).forEach((n) => names.add(n));
+  }
+  for (const name of names) {
+    const [[u]] = await pool.query('SELECT id FROM users WHERE LOWER(username) = ? LIMIT 1', [name]);
+    if (!u || u.id === actorId) continue;
+    await pool.query('INSERT IGNORE INTO mentions (video_id, user_id) VALUES (?, ?)', [videoId, u.id]);
+    await notify({ userId: u.id, actorId, type: 'mention', videoId, message: 'mentioned you in a reel', app });
+  }
+}
+
+// Compress + cover + thumbnail + probe, then mark the video ready/scheduled and notify.
+async function processInBackground(app, videoId, inputPath, coverTime, ownerId, scheduled = false) {
   try {
     const { processVideo } = require('../jobs/videoProcessor');
     const out = await processVideo(inputPath, { coverTime });
+    const finalStatus = scheduled ? 'scheduled' : 'ready';
     await pool.query(
-      `UPDATE videos SET video_path=?, thumb_path=?, cover_path=?, duration=?, width=?, height=?, file_size=?, status='ready'
+      `UPDATE videos SET video_path=?, thumb_path=?, cover_path=?, duration=?, width=?, height=?, file_size=?, status=?
        WHERE id=?`,
-      [out.videoRel, out.thumbRel, out.coverRel, out.duration, out.width, out.height, out.fileSize, videoId]
+      [out.videoRel, out.thumbRel, out.coverRel, out.duration, out.width, out.height, out.fileSize, finalStatus, videoId]
     );
-    // Tell the owner their reel is live (feed can refresh / swap the processing card).
+    // Tell the owner (scheduled posts won't appear in feed until due).
     try {
       const io = app.get('io');
-      if (io) io.to(`user:${ownerId}`).emit('video:ready', { videoId });
+      if (io) io.to(`user:${ownerId}`).emit(scheduled ? 'video:scheduled' : 'video:ready', { videoId });
     } catch (_) {}
   } catch (err) {
     console.error('[processor] failed for video', videoId, err.message);

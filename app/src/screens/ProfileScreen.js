@@ -139,6 +139,9 @@ export default function ProfileScreen({ navigation }) {
       {item.status === 'processing' && (
         <View style={styles.tileOverlay}><Text style={styles.tileBadge}>Processing…</Text></View>
       )}
+      {item.status === 'scheduled' && (
+        <View style={styles.tileOverlay}><Text style={styles.tileBadge}>🗓️ Scheduled</Text></View>
+      )}
       {item.status === 'failed' && (
         <View style={styles.tileOverlay}><Text style={[styles.tileBadge, { color: colors.danger }]}>Failed</Text></View>
       )}

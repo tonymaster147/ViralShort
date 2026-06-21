@@ -57,10 +57,15 @@ CREATE TABLE IF NOT EXISTS videos (
   width       INT DEFAULT NULL,
   height      INT DEFAULT NULL,
   file_size   BIGINT DEFAULT NULL,
-  status      ENUM('processing','ready','failed') NOT NULL DEFAULT 'ready',
+  status      ENUM('processing','ready','failed','scheduled') NOT NULL DEFAULT 'ready',
   allow_comments TINYINT(1) NOT NULL DEFAULT 1,
   allow_remix    TINYINT(1) NOT NULL DEFAULT 1,
   allow_download TINYINT(1) NOT NULL DEFAULT 0,
+  has_voiceover  TINYINT(1) NOT NULL DEFAULT 0,
+  location_name VARCHAR(150) DEFAULT NULL,
+  location_lat  DECIMAL(10,7) DEFAULT NULL,
+  location_lng  DECIMAL(10,7) DEFAULT NULL,
+  scheduled_at  DATETIME DEFAULT NULL,
   views       INT NOT NULL DEFAULT 0,
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_videos_user  FOREIGN KEY (user_id)  REFERENCES users(id)  ON DELETE CASCADE,
@@ -96,6 +101,17 @@ CREATE TABLE IF NOT EXISTS video_hashtags (
   PRIMARY KEY (video_id, hashtag_id),
   CONSTRAINT fk_vh_video   FOREIGN KEY (video_id)   REFERENCES videos(id)   ON DELETE CASCADE,
   CONSTRAINT fk_vh_hashtag FOREIGN KEY (hashtag_id) REFERENCES hashtags(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- @mentions on a video
+CREATE TABLE IF NOT EXISTS mentions (
+  video_id   INT NOT NULL,
+  user_id    INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (video_id, user_id),
+  CONSTRAINT fk_mentions_video FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
+  CONSTRAINT fk_mentions_user  FOREIGN KEY (user_id)  REFERENCES users(id)  ON DELETE CASCADE,
+  INDEX idx_mentions_user (user_id)
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------

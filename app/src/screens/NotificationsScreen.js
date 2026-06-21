@@ -12,6 +12,7 @@ const META = {
   comment: { icon: 'chatbubble',       color: colors.accent },
   follow:  { icon: 'person-add',       color: '#4caf50' },
   gift:    { icon: 'diamond',          color: colors.diamond },
+  mention: { icon: 'at',               color: colors.accent },
   system:  { icon: 'trophy',           color: colors.coin },
 };
 function verb(type) {
@@ -19,6 +20,7 @@ function verb(type) {
     : type === 'comment' ? 'commented on your video'
     : type === 'follow' ? 'started following you'
     : type === 'gift' ? 'sent you diamonds'
+    : type === 'mention' ? 'mentioned you in a reel'
     : 'sent you a notification';
 }
 function timeAgo(iso) {
