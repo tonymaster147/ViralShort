@@ -27,7 +27,8 @@
       "Bash(cd \"e:/my projects/viralshort/app\" && rm -rf node_modules/.cache .expo && timeout 180 npx expo export --platform android --output-dir /tmp/vs-test2 2>&1 | tail -6; echo \"EXIT: $?\"; rm -rf /tmp/vs-test2)",
       "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; DELETE FROM users WHERE username='vid';\")",
       "Bash(rm -f \"e:/my projects/viralshort/server/uploads/videos/\"*.mp4)",
-      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; DELETE FROM users WHERE username IN \\('alice','bob'\\);\")"
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; DELETE FROM users WHERE username IN \\('alice','bob'\\);\")",
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; DELETE FROM users WHERE username='dancer'; DELETE FROM hashtags;\")"
     ],
     "additionalDirectories": [
       "e:\\my projects\\viralshort\\server\\src",

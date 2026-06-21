@@ -82,7 +82,7 @@ export default function ProfileScreen({ navigation }) {
   );
 
   const renderTile = ({ item }) => (
-    <View style={styles.tile}>
+    <TouchableOpacity style={styles.tile} onPress={() => navigation.navigate('Video', { videoId: item.id, video: item })}>
       {item.thumbUrl ? (
         <Image source={{ uri: item.thumbUrl }} style={styles.tileImg} />
       ) : (
@@ -91,7 +91,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
       )}
       <Text style={styles.tileViews}>👁 {item.views}</Text>
-    </View>
+    </TouchableOpacity>
   );
 
   return (

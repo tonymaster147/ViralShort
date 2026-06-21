@@ -15,6 +15,9 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import FeedScreen from '../screens/FeedScreen';
 import CreateScreen from '../screens/CreateScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
+import DiscoverScreen from '../screens/DiscoverScreen';
+import HashtagScreen from '../screens/HashtagScreen';
+import VideoScreen from '../screens/VideoScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 
 const navTheme = {
@@ -52,25 +55,49 @@ function ProfileNavigator() {
     >
       <ProfileStack.Screen name="MyProfile" component={ProfileScreen} options={{ title: 'Profile' }} />
       <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile' }} />
+      <ProfileStack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profile' }} />
+      <ProfileStack.Screen name="Hashtag" component={HashtagScreen} options={{ title: 'Hashtag' }} />
+      <ProfileStack.Screen name="Video" component={VideoScreen} options={{ headerShown: false }} />
     </ProfileStack.Navigator>
   );
 }
 
-// Feed stack (feed + user profiles you tap into)
+const stackOpts = { headerStyle: { backgroundColor: colors.surface }, headerTintColor: colors.text };
+
+// Shared discovery routes added to multiple stacks.
+function discoveryScreens(Stack) {
+  return (
+    <>
+      <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profile' }} />
+      <Stack.Screen name="Hashtag" component={HashtagScreen} options={{ title: 'Hashtag' }} />
+      <Stack.Screen name="Video" component={VideoScreen} options={{ headerShown: false }} />
+    </>
+  );
+}
+
+// Feed stack
 const FeedStack = createNativeStackNavigator();
 function FeedNavigator() {
   return (
-    <FeedStack.Navigator
-      screenOptions={{ headerStyle: { backgroundColor: colors.surface }, headerTintColor: colors.text }}
-    >
+    <FeedStack.Navigator screenOptions={stackOpts}>
       <FeedStack.Screen name="FeedHome" component={FeedScreen} options={{ headerShown: false }} />
-      <FeedStack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profile' }} />
+      {discoveryScreens(FeedStack)}
     </FeedStack.Navigator>
   );
 }
 
+// Discover stack
+const DiscoverStack = createNativeStackNavigator();
+function DiscoverNavigator() {
+  return (
+    <DiscoverStack.Navigator screenOptions={stackOpts}>
+      <DiscoverStack.Screen name="DiscoverHome" component={DiscoverScreen} options={{ headerShown: false }} />
+      {discoveryScreens(DiscoverStack)}
+    </DiscoverStack.Navigator>
+  );
+}
+
 // Placeholder tab screens (real ones land in later phases)
-const SearchScreen = () => <PlaceholderScreen title="Discover" emoji="🔍" phase="Phase 4" />;
 const InboxScreen = () => <PlaceholderScreen title="Inbox" emoji="💬" phase="Phase 5" />;
 
 function tabIcon(label) {
@@ -90,7 +117,7 @@ function MainNavigator() {
       }}
     >
       <Tab.Screen name="Feed" component={FeedNavigator} options={{ tabBarIcon: tabIcon('🏠') }} />
-      <Tab.Screen name="Discover" component={SearchScreen} options={{ tabBarIcon: tabIcon('🔍') }} />
+      <Tab.Screen name="Discover" component={DiscoverNavigator} options={{ tabBarIcon: tabIcon('🔍') }} />
       <Tab.Screen name="Create" component={CreateScreen} options={{ tabBarIcon: tabIcon('➕') }} />
       <Tab.Screen name="Inbox" component={InboxScreen} options={{ tabBarIcon: tabIcon('💬') }} />
       <Tab.Screen name="Profile" component={ProfileNavigator} options={{ tabBarIcon: tabIcon('👤') }} />
