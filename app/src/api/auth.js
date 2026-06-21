@@ -31,6 +31,7 @@ export async function uploadAvatar(imageAsset) {
   });
   const res = await client.post('/users/me/avatar', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 0,
   });
   return res.data.user;
 }

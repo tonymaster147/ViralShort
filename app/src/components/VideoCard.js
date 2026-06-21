@@ -6,6 +6,7 @@ import { colors } from '../theme/colors';
 import { addView } from '../api/videos';
 import { toggleLike, toggleFollow } from '../api/social';
 import { useAuth } from '../context/AuthContext';
+import { filterOverlay } from '../theme/filters';
 
 // One full-screen reel. `active` controls play/pause as the user swipes.
 export default function VideoCard({ video, active, height, onOpenComments, onUserPress }) {
@@ -77,6 +78,9 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
           contentFit="cover"
           nativeControls={false}
         />
+        {video.filter ? (
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: filterOverlay(video.filter) }]} />
+        ) : null}
       </TouchableOpacity>
 
       {/* Right action rail */}
@@ -125,6 +129,7 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
           )}
         </View>
         {video.caption ? <Text style={styles.caption}>{video.caption}</Text> : null}
+        {video.soundTitle ? <Text style={styles.sound}>♪ {video.soundTitle}</Text> : null}
         <Text style={styles.views}>👁 {video.views} views</Text>
       </View>
     </View>
@@ -148,5 +153,6 @@ const styles = StyleSheet.create({
   followingBtn: { borderColor: colors.border },
   followText: { color: colors.text, fontWeight: '700', fontSize: 12 },
   caption: { color: colors.text, fontSize: 14, marginBottom: 6 },
+  sound: { color: colors.text, fontSize: 12, marginBottom: 4 },
   views: { color: colors.textMuted, fontSize: 12 },
 });

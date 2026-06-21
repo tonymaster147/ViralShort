@@ -3,9 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from './config';
 
 // Shared axios instance for the whole app.
+// Generous default timeout; uploads override this with timeout: 0 (no limit).
 const client = axios.create({
   baseURL: API_URL,
-  timeout: 15000,
+  timeout: 60000,
 });
 
 // Attach JWT token (set after login) to every request.

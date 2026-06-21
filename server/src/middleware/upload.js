@@ -20,7 +20,7 @@ function makeUploader(subdir, allowedMimePrefix) {
 
   return multer({
     storage,
-    limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB cap
+    limits: { fileSize: 200 * 1024 * 1024 }, // 200 MB cap
     fileFilter: (req, file, cb) => {
       if (allowedMimePrefix && !file.mimetype.startsWith(allowedMimePrefix)) {
         return cb(new Error(`Only ${allowedMimePrefix}* files are allowed`));

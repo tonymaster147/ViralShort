@@ -39,6 +39,10 @@ app.use((req, res) => {
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error('[error]', err.message);
+  // Friendlier message for oversized uploads.
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ ok: false, error: 'Video too large (max 200 MB). Try a shorter clip.' });
+  }
   res.status(err.status || 500).json({ ok: false, error: err.message || 'Server error' });
 });
 

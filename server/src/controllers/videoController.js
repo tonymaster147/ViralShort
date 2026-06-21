@@ -8,6 +8,9 @@ function publicVideo(row, viewerId) {
     videoUrl: fileUrl(row.video_path),
     thumbUrl: fileUrl(row.thumb_path),
     caption: row.caption,
+    filter: row.filter,
+    soundId: row.sound_id,
+    soundTitle: row.sound_title || null,
     views: row.views,
     likeCount: row.like_count || 0,
     commentCount: row.comment_count || 0,
@@ -45,12 +48,13 @@ async function attachHashtags(videoId, caption) {
 // Shared SELECT used by feed/detail/profile so counts + liked are consistent.
 function baseSelect(viewerId) {
   return `
-    SELECT v.*, u.username, u.display_name, u.avatar_path,
+    SELECT v.*, u.username, u.display_name, u.avatar_path, s.title AS sound_title,
       (SELECT COUNT(*) FROM likes l WHERE l.video_id = v.id) AS like_count,
       (SELECT COUNT(*) FROM comments c WHERE c.video_id = v.id) AS comment_count,
       ${viewerId ? '(SELECT COUNT(*) FROM likes l2 WHERE l2.video_id = v.id AND l2.user_id = ?)' : '0'} AS liked
     FROM videos v
     JOIN users u ON u.id = v.user_id
+    LEFT JOIN sounds s ON s.id = v.sound_id
   `;
 }
 
@@ -59,11 +63,13 @@ async function createVideo(req, res, next) {
   try {
     if (!req.file) return res.status(400).json({ ok: false, error: 'No video file uploaded' });
     const caption = (req.body.caption || '').slice(0, 500);
+    const filter = req.body.filter ? String(req.body.filter).slice(0, 30) : null;
+    const soundId = req.body.soundId ? Number(req.body.soundId) : null;
     const relPath = `videos/${req.file.filename}`;
 
     const [result] = await pool.query(
-      'INSERT INTO videos (user_id, video_path, caption) VALUES (?, ?, ?)',
-      [req.userId, relPath, caption]
+      'INSERT INTO videos (user_id, video_path, caption, filter, sound_id) VALUES (?, ?, ?, ?, ?)',
+      [req.userId, relPath, caption, filter, soundId]
     );
 
     await attachHashtags(result.insertId, caption);
@@ -167,6 +173,16 @@ async function deleteVideo(req, res, next) {
   }
 }
 
+// GET /api/videos/sounds  -> list available soundtracks
+async function getSounds(req, res, next) {
+  try {
+    const [rows] = await pool.query('SELECT id, title, author_name FROM sounds ORDER BY id');
+    res.json({ ok: true, sounds: rows.map((s) => ({ id: s.id, title: s.title, author: s.author_name })) });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createVideo,
   getFeed,
@@ -175,5 +191,6 @@ module.exports = {
   getVideo,
   addView,
   deleteVideo,
+  getSounds,
   publicVideo,
 };

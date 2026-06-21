@@ -9,6 +9,7 @@ const {
   getVideo,
   addView,
   deleteVideo,
+  getSounds,
 } = require('../controllers/videoController');
 const {
   toggleLike, getComments, addComment,
@@ -17,6 +18,7 @@ const {
 const router = express.Router();
 
 router.post('/', requireAuth, uploadVideoMw.single('video'), createVideo);
+router.get('/sounds', getSounds);
 router.get('/feed', optionalAuth, getFeed);
 router.get('/following', requireAuth, getFollowingFeed);
 router.get('/user/:id', optionalAuth, getUserVideos);

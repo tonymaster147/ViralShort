@@ -28,7 +28,8 @@
       "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; DELETE FROM users WHERE username='vid';\")",
       "Bash(rm -f \"e:/my projects/viralshort/server/uploads/videos/\"*.mp4)",
       "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; DELETE FROM users WHERE username IN \\('alice','bob'\\);\")",
-      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; DELETE FROM users WHERE username='dancer'; DELETE FROM hashtags;\")"
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; DELETE FROM users WHERE username='dancer'; DELETE FROM hashtags;\")",
+      "Bash(C:/xampp/mysql/bin/mysql.exe -u root -e ' *)"
     ],
     "additionalDirectories": [
       "e:\\my projects\\viralshort\\server\\src",

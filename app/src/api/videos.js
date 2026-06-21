@@ -15,6 +15,11 @@ export async function fetchUserVideos(userId) {
   return res.data.videos;
 }
 
+export async function fetchSounds() {
+  const res = await client.get('/videos/sounds');
+  return res.data.sounds;
+}
+
 export async function addView(videoId) {
   try {
     await client.post(`/videos/${videoId}/view`);
@@ -29,10 +34,13 @@ export async function deleteVideo(videoId) {
 }
 
 // videoAsset: { uri, fileName?, mimeType? } from expo-image-picker
-export async function uploadVideo(videoAsset, caption, onProgress) {
+// opts: { filter?, soundId? }
+export async function uploadVideo(videoAsset, caption, onProgress, opts = {}) {
   const form = new FormData();
   const name = videoAsset.fileName || `video_${Date.now()}.mp4`;
   form.append('caption', caption || '');
+  if (opts.filter) form.append('filter', opts.filter);
+  if (opts.soundId) form.append('soundId', String(opts.soundId));
   form.append('video', {
     uri: videoAsset.uri,
     name,
@@ -40,6 +48,7 @@ export async function uploadVideo(videoAsset, caption, onProgress) {
   });
   const res = await client.post('/videos', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 0, // no timeout — large video uploads can take a while
     onUploadProgress: (e) => {
       if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100));
     },
