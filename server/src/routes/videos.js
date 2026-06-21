@@ -10,6 +10,9 @@ const {
   addView,
   deleteVideo,
 } = require('../controllers/videoController');
+const {
+  toggleLike, getComments, addComment,
+} = require('../controllers/socialController');
 
 const router = express.Router();
 
@@ -20,5 +23,10 @@ router.get('/user/:id', optionalAuth, getUserVideos);
 router.post('/:id/view', addView);
 router.get('/:id', optionalAuth, getVideo);
 router.delete('/:id', requireAuth, deleteVideo);
+
+// Social
+router.post('/:id/like', requireAuth, toggleLike);
+router.get('/:id/comments', optionalAuth, getComments);
+router.post('/:id/comments', requireAuth, addComment);
 
 module.exports = router;

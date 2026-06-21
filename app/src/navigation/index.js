@@ -14,6 +14,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import FeedScreen from '../screens/FeedScreen';
 import CreateScreen from '../screens/CreateScreen';
+import UserProfileScreen from '../screens/UserProfileScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 
 const navTheme = {
@@ -55,6 +56,19 @@ function ProfileNavigator() {
   );
 }
 
+// Feed stack (feed + user profiles you tap into)
+const FeedStack = createNativeStackNavigator();
+function FeedNavigator() {
+  return (
+    <FeedStack.Navigator
+      screenOptions={{ headerStyle: { backgroundColor: colors.surface }, headerTintColor: colors.text }}
+    >
+      <FeedStack.Screen name="FeedHome" component={FeedScreen} options={{ headerShown: false }} />
+      <FeedStack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profile' }} />
+    </FeedStack.Navigator>
+  );
+}
+
 // Placeholder tab screens (real ones land in later phases)
 const SearchScreen = () => <PlaceholderScreen title="Discover" emoji="🔍" phase="Phase 4" />;
 const InboxScreen = () => <PlaceholderScreen title="Inbox" emoji="💬" phase="Phase 5" />;
@@ -75,7 +89,7 @@ function MainNavigator() {
         tabBarInactiveTintColor: colors.textMuted,
       }}
     >
-      <Tab.Screen name="Feed" component={FeedScreen} options={{ tabBarIcon: tabIcon('🏠') }} />
+      <Tab.Screen name="Feed" component={FeedNavigator} options={{ tabBarIcon: tabIcon('🏠') }} />
       <Tab.Screen name="Discover" component={SearchScreen} options={{ tabBarIcon: tabIcon('🔍') }} />
       <Tab.Screen name="Create" component={CreateScreen} options={{ tabBarIcon: tabIcon('➕') }} />
       <Tab.Screen name="Inbox" component={InboxScreen} options={{ tabBarIcon: tabIcon('💬') }} />

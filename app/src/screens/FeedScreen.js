@@ -6,12 +6,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import VideoCard from '../components/VideoCard';
+import CommentsSheet from '../components/CommentsSheet';
 import { fetchFeed, fetchFollowingFeed } from '../api/videos';
 import { colors } from '../theme/colors';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 
-export default function FeedScreen() {
+export default function FeedScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   // Each page = full screen minus the bottom tab bar (~50) + safe area.
   const ITEM_HEIGHT = SCREEN_H - 49 - insets.bottom;
@@ -22,6 +23,8 @@ export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [screenFocused, setScreenFocused] = useState(true);
+  const [commentsFor, setCommentsFor] = useState(null);   // video object
+  const commentCountSetterRef = useRef(null);
 
   const load = useCallback(async (which) => {
     setLoading(true);
@@ -57,11 +60,18 @@ export default function FeedScreen() {
     if (viewableItems.length > 0) setActiveIndex(viewableItems[0].index ?? 0);
   }).current;
 
+  const openComments = (video, setCount) => {
+    commentCountSetterRef.current = setCount;
+    setCommentsFor(video);
+  };
+
   const renderItem = ({ item, index }) => (
     <VideoCard
       video={item}
-      active={screenFocused && index === activeIndex}
+      active={screenFocused && !commentsFor && index === activeIndex}
       height={ITEM_HEIGHT}
+      onOpenComments={openComments}
+      onUserPress={(userId) => navigation.navigate('UserProfile', { userId })}
     />
   );
 
@@ -106,6 +116,13 @@ export default function FeedScreen() {
           }
         />
       )}
+
+      <CommentsSheet
+        visible={!!commentsFor}
+        videoId={commentsFor?.id}
+        onClose={() => setCommentsFor(null)}
+        onCountChange={(delta) => commentCountSetterRef.current?.((c) => c + delta)}
+      />
     </View>
   );
 }
