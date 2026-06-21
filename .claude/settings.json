@@ -13,7 +13,9 @@
       "Bash(git init *)",
       "Bash(git config *)",
       "Bash(git add *)",
-      "Bash(git commit -m 'Phase 0: ViralShort foundation — Express API, MySQL schema, Expo app with health check *)"
+      "Bash(git commit -m 'Phase 0: ViralShort foundation — Express API, MySQL schema, Expo app with health check *)",
+      "Bash(git remote *)",
+      "Bash(timeout 60 git push -u origin main)"
     ],
     "additionalDirectories": [
       "e:\\my projects\\viralshort\\server\\src"
