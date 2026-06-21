@@ -44,3 +44,8 @@ export async function fetchUnreadCount() {
   const res = await client.get('/notifications/unread-count');
   return res.data.count;
 }
+
+export async function markAllNotificationsRead() {
+  const res = await client.post('/notifications/read-all');
+  return res.data;
+}

@@ -14,6 +14,7 @@ function publicVideo(row, viewerId) {
     views: row.views,
     likeCount: row.like_count || 0,
     commentCount: row.comment_count || 0,
+    diamonds: row.diamond_total || 0,
     liked: !!row.liked,
     createdAt: row.created_at,
     user: {
@@ -51,6 +52,9 @@ function baseSelect(viewerId) {
     SELECT v.*, u.username, u.display_name, u.avatar_path, s.title AS sound_title,
       (SELECT COUNT(*) FROM likes l WHERE l.video_id = v.id) AS like_count,
       (SELECT COUNT(*) FROM comments c WHERE c.video_id = v.id) AS comment_count,
+      (SELECT COALESCE(SUM(ct.amount),0) FROM coin_transactions ct
+         WHERE ct.currency='diamonds' AND ct.amount>0 AND ct.ref_id=v.id
+           AND ct.reason IN ('gift_received','diamond_received')) AS diamond_total,
       ${viewerId ? '(SELECT COUNT(*) FROM likes l2 WHERE l2.video_id = v.id AND l2.user_id = ?)' : '0'} AS liked
     FROM videos v
     JOIN users u ON u.id = v.user_id
@@ -201,7 +205,12 @@ async function getVideo(req, res, next) {
 async function addView(req, res, next) {
   try {
     await pool.query('UPDATE videos SET views = views + 1 WHERE id = ?', [req.params.id]);
-    res.json({ ok: true });
+    const [[v]] = await pool.query('SELECT views FROM videos WHERE id = ?', [req.params.id]);
+    if (v) {
+      const { emitVideoStats } = require('../sockets');
+      emitVideoStats(req.app, req.params.id, { views: v.views });
+    }
+    res.json({ ok: true, views: v ? v.views : undefined });
   } catch (err) {
     next(err);
   }

@@ -4,6 +4,7 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
@@ -124,20 +125,32 @@ function InboxNavigator() {
   );
 }
 
-function tabIcon(label) {
-  return ({ color }) => <Text style={{ color, fontSize: 22 }}>{label}</Text>;
+// Vector tab icon (filled when focused).
+function tabIcon(name) {
+  return ({ color, focused, size }) => (
+    <Ionicons name={focused ? name : `${name}-outline`} size={size ?? 24} color={color} />
+  );
 }
 
-// Small red dot badge for unread counts on a tab icon.
-function badgedIcon(label, count) {
-  return ({ color }) => (
+// Tab icon with an unread-count badge.
+function badgedIcon(name, count) {
+  return ({ color, focused, size }) => (
     <View>
-      <Text style={{ color, fontSize: 22 }}>{label}</Text>
+      <Ionicons name={focused ? name : `${name}-outline`} size={size ?? 24} color={color} />
       {count > 0 && (
         <View style={badgeStyle.dot}>
           <Text style={badgeStyle.dotText}>{count > 9 ? '9+' : count}</Text>
         </View>
       )}
+    </View>
+  );
+}
+
+// The center "Create" button gets a distinct pill look.
+function createIcon() {
+  return ({ focused }) => (
+    <View style={badgeStyle.createBtn}>
+      <Ionicons name="add" size={26} color="#fff" />
     </View>
   );
 }
@@ -150,20 +163,21 @@ function MainNavigator() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
-        tabBarActiveTintColor: colors.primary,
+        tabBarShowLabel: false,
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border, height: 58, paddingTop: 6 },
+        tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.textMuted,
       }}
     >
-      <Tab.Screen name="Feed" component={FeedNavigator} options={{ tabBarIcon: tabIcon('🏠') }} />
-      <Tab.Screen name="Discover" component={DiscoverNavigator} options={{ tabBarIcon: tabIcon('🔍') }} />
-      <Tab.Screen name="Create" component={CreateScreen} options={{ tabBarIcon: tabIcon('➕') }} />
+      <Tab.Screen name="Feed" component={FeedNavigator} options={{ tabBarIcon: tabIcon('home') }} />
+      <Tab.Screen name="Discover" component={DiscoverNavigator} options={{ tabBarIcon: tabIcon('search') }} />
+      <Tab.Screen name="Create" component={CreateScreen} options={{ tabBarIcon: createIcon() }} />
       <Tab.Screen
         name="Inbox"
         component={InboxNavigator}
-        options={{ tabBarIcon: badgedIcon('💬', unreadMessages) }}
+        options={{ tabBarIcon: badgedIcon('chatbubble', unreadMessages) }}
       />
-      <Tab.Screen name="Profile" component={ProfileNavigator} options={{ tabBarIcon: tabIcon('👤') }} />
+      <Tab.Screen name="Profile" component={ProfileNavigator} options={{ tabBarIcon: tabIcon('person') }} />
     </Tab.Navigator>
   );
 }
@@ -171,6 +185,7 @@ function MainNavigator() {
 const badgeStyle = StyleSheet.create({
   dot: { position: 'absolute', top: -6, right: -10, backgroundColor: colors.primary, borderRadius: 9, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   dotText: { color: colors.text, fontSize: 10, fontWeight: '800' },
+  createBtn: { width: 44, height: 30, borderRadius: 9, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
 });
 
 export default function RootNavigation() {

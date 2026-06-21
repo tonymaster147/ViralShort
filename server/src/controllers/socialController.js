@@ -1,6 +1,7 @@
 const { pool } = require('../config/db');
 const { fileUrl } = require('../config/url');
 const { notify } = require('./notificationHelper');
+const { emitVideoStats } = require('../sockets');
 
 // ---------- LIKES ----------
 
@@ -27,6 +28,7 @@ async function toggleLike(req, res, next) {
     }
 
     const [[{ c }]] = await pool.query('SELECT COUNT(*) AS c FROM likes WHERE video_id = ?', [videoId]);
+    emitVideoStats(req.app, videoId, { likeCount: c });
     res.json({ ok: true, liked, likeCount: c });
   } catch (err) {
     next(err);
@@ -210,10 +212,11 @@ async function getNotifications(req, res, next) {
     const [rows] = await pool.query(
       `SELECT n.*, a.username AS actor_username, a.display_name AS actor_display, a.avatar_path AS actor_avatar
        FROM notifications n LEFT JOIN users a ON a.id = n.actor_id
-       WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT 50`,
+       WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT 100`,
       [req.userId]
     );
-    await pool.query('UPDATE notifications SET is_read = 1 WHERE user_id = ?', [req.userId]);
+    // Note: do NOT auto-mark read here — the panel keeps unread state and
+    // exposes an explicit "mark all read" action.
     const notifications = rows.map((r) => ({
       id: r.id,
       type: r.type,
@@ -229,6 +232,16 @@ async function getNotifications(req, res, next) {
       } : null,
     }));
     res.json({ ok: true, notifications });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/notifications/read-all  -> mark every notification as read
+async function markAllRead(req, res, next) {
+  try {
+    await pool.query('UPDATE notifications SET is_read = 1 WHERE user_id = ?', [req.userId]);
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }
@@ -251,5 +264,5 @@ module.exports = {
   toggleLike,
   getComments, getReplies, addComment, deleteComment,
   toggleFollow, getFollowers, getFollowing,
-  getNotifications, getUnreadCount,
+  getNotifications, getUnreadCount, markAllRead,
 };

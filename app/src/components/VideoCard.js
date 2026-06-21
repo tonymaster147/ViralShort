@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
 import { colors } from '../theme/colors';
 import { addView } from '../api/videos';
 import { toggleLike, toggleFollow } from '../api/social';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import { filterOverlay } from '../theme/filters';
 import GiftSheet from './GiftSheet';
 import DiamondSheet from './DiamondSheet';
@@ -13,6 +15,7 @@ import DiamondSheet from './DiamondSheet';
 // One full-screen reel. `active` controls play/pause as the user swipes.
 export default function VideoCard({ video, active, height, onOpenComments, onUserPress }) {
   const { user } = useAuth();
+  const { on } = useSocket();
   const player = useVideoPlayer(video.videoUrl, (p) => {
     p.loop = true;
     p.muted = false;
@@ -24,9 +27,22 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
   const [liked, setLiked] = useState(!!video.liked);
   const [likeCount, setLikeCount] = useState(video.likeCount || 0);
   const [commentCount, setCommentCount] = useState(video.commentCount || 0);
+  const [diamonds, setDiamonds] = useState(video.diamonds || 0);
+  const [views, setViews] = useState(video.views || 0);
   const [following, setFollowing] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
   const [diamondOpen, setDiamondOpen] = useState(false);
+
+  // Live stats: update like/view/diamond counts when the server broadcasts them.
+  useEffect(() => {
+    const off = on('video:stats', (s) => {
+      if (s.videoId !== video.id) return;
+      if (s.likeCount != null) setLikeCount(s.likeCount);
+      if (s.views != null) setViews(s.views);
+      if (s.diamonds != null) setDiamonds(s.diamonds);
+    });
+    return off;
+  }, [on, video.id]);
 
   const isOwn = user?.id === video.user.id;
 
@@ -90,31 +106,29 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
       {/* Right action rail */}
       <View style={styles.rail}>
         <TouchableOpacity style={styles.action} onPress={onLike}>
-          <Text style={styles.actionEmoji}>{liked ? '❤️' : '🤍'}</Text>
+          <Ionicons name={liked ? 'heart' : 'heart-outline'} size={34} color={liked ? colors.primary : '#fff'} />
           <Text style={styles.actionLabel}>{likeCount}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.action} onPress={() => onOpenComments?.(video, setCommentCount)}>
-          <Text style={styles.actionEmoji}>💬</Text>
+          <Ionicons name="chatbubble-ellipses" size={32} color="#fff" />
           <Text style={styles.actionLabel}>{commentCount}</Text>
         </TouchableOpacity>
 
-        {!isOwn && (
-          <TouchableOpacity style={styles.action} onPress={() => setDiamondOpen(true)}>
-            <Text style={styles.actionEmoji}>💎</Text>
-            <Text style={styles.actionLabel}>Send</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity style={styles.action} onPress={() => !isOwn && setDiamondOpen(true)} disabled={isOwn}>
+          <Ionicons name="diamond" size={32} color={colors.diamond} />
+          <Text style={styles.actionLabel}>{diamonds}</Text>
+        </TouchableOpacity>
 
         {!isOwn && (
           <TouchableOpacity style={styles.action} onPress={() => setGiftOpen(true)}>
-            <Text style={styles.actionEmoji}>🎁</Text>
+            <Ionicons name="gift" size={32} color={colors.coin} />
             <Text style={styles.actionLabel}>Gift</Text>
           </TouchableOpacity>
         )}
 
         <TouchableOpacity style={styles.action}>
-          <Text style={styles.actionEmoji}>↗️</Text>
+          <Ionicons name="arrow-redo" size={32} color="#fff" />
           <Text style={styles.actionLabel}>Share</Text>
         </TouchableOpacity>
       </View>
@@ -143,7 +157,7 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
         </View>
         {video.caption ? <Text style={styles.caption}>{video.caption}</Text> : null}
         {video.soundTitle ? <Text style={styles.sound}>♪ {video.soundTitle}</Text> : null}
-        <Text style={styles.views}>👁 {video.views} views</Text>
+        <Text style={styles.views}>👁 {views} views</Text>
       </View>
 
       <GiftSheet

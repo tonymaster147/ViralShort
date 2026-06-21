@@ -37,7 +37,9 @@
       "Bash(node -e \"console.log\\('binary:', require\\('ffmpeg-static'\\)\\)\")",
       "Bash(node -e \"const p=require\\('ffmpeg-static'\\); const fs=require\\('fs'\\); console.log\\('binary path:', p\\); console.log\\('exists:', fs.existsSync\\(p\\)\\);\")",
       "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; SELECT id, thumb_path FROM videos;\")",
-      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; DELETE FROM videos WHERE id IN \\(12,13,17\\); SELECT COUNT\\(*\\) AS videos_left FROM videos;\")"
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; DELETE FROM videos WHERE id IN \\(12,13,17\\); SELECT COUNT\\(*\\) AS videos_left FROM videos;\")",
+      "Bash(node -e \"console.log\\(require\\('@expo/vector-icons/package.json'\\).version\\)\")",
+      "Bash(node -e \"console.log\\('vector-icons:', require\\('@expo/vector-icons/package.json'\\).version\\)\")"
     ],
     "additionalDirectories": [
       "e:\\my projects\\viralshort\\server\\src",

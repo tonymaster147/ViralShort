@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Image, FlatList, TouchableOpacity, Dimensions } from 'react-native';
 import { Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui';
@@ -41,8 +42,8 @@ export default function ProfileScreen({ navigation }) {
   React.useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ paddingHorizontal: 12 }}>
-          <Text style={{ fontSize: 20 }}>🔔</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ paddingHorizontal: 14 }}>
+          <Ionicons name="notifications-outline" size={24} color={colors.text} />
         </TouchableOpacity>
       ),
     });

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -128,7 +129,16 @@ export default function CreateScreen({ navigation }) {
   const selectedSound = sounds.find((s) => s.id === soundId);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingTop: insets.top + 10, paddingBottom: 40 }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ padding: 20, paddingTop: insets.top + 10, paddingBottom: 120 }}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+    >
       <Text style={styles.title}>New Reel</Text>
 
       {asset ? (
@@ -250,6 +260,7 @@ export default function CreateScreen({ navigation }) {
 
       <Button title="Post Reel" onPress={onUpload} loading={uploading} disabled={!asset} />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

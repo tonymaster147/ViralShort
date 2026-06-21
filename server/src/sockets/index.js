@@ -70,4 +70,10 @@ function emitNotification(app, userId, payload) {
   if (io) io.to(`user:${userId}`).emit('notification:new', payload);
 }
 
-module.exports = { attachSockets, emitNotification };
+// Broadcast updated stats for a video to everyone (live like/view/diamond counts).
+function emitVideoStats(app, videoId, stats) {
+  const io = app.get('io');
+  if (io) io.emit('video:stats', { videoId: Number(videoId), ...stats });
+}
+
+module.exports = { attachSockets, emitNotification, emitVideoStats };

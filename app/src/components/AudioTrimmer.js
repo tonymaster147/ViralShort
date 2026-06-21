@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { createAudioPlayer } from 'expo-audio';
@@ -11,63 +11,102 @@ function fmt(s) {
 }
 
 // Lets the user choose which slice of the picked music to use.
-// Reports { start, duration } up via onChange. videoDuration caps the length.
+// Reports { start, duration } up via onChange.
+// The chosen length can never exceed the video duration.
 export default function AudioTrimmer({ music, videoDuration, onChange }) {
-  const [player, setPlayer] = useState(null);
+  const playerRef = useRef(null);
+  const stopTimer = useRef(null);
   const [audioDuration, setAudioDuration] = useState(0);
   const [start, setStart] = useState(0);
   const [length, setLength] = useState(videoDuration || 15);
   const [playing, setPlaying] = useState(false);
+
+  // Hard cap: music length can't be longer than the video.
+  const cap = (val) => {
+    let max = audioDuration > 0 ? audioDuration - start : val;
+    if (videoDuration) max = Math.min(max, videoDuration);
+    return Math.max(1, Math.min(val, max));
+  };
 
   // Load the audio to read its duration.
   useEffect(() => {
     let p;
     try {
       p = createAudioPlayer({ uri: music.uri });
-      setPlayer(p);
+      playerRef.current = p;
       const poll = setInterval(() => {
         if (p.duration && p.duration > 0) {
           setAudioDuration(p.duration);
-          // default length = min(video length, audio length)
           const def = Math.min(videoDuration || p.duration, p.duration);
           setLength(def);
           clearInterval(poll);
         }
-      }, 200);
+      }, 150);
       setTimeout(() => clearInterval(poll), 5000);
     } catch (_) {}
-    return () => { try { p?.remove(); } catch (_) {} };
+    return () => {
+      if (stopTimer.current) clearTimeout(stopTimer.current);
+      try { p?.remove(); } catch (_) {}
+    };
   }, [music.uri]);
 
-  // Report changes upward.
+  // Keep length within the cap whenever start/duration changes.
+  useEffect(() => {
+    setLength((l) => cap(l));
+  }, [start, audioDuration, videoDuration]);
+
+  // Report the slice upward.
   useEffect(() => {
     onChange?.({ start: Math.round(start), duration: Math.round(length) });
   }, [start, length]);
 
-  const maxStart = Math.max(0, audioDuration - 1);
-  const maxLength = Math.max(1, audioDuration - start);
+  const stopPreview = () => {
+    if (stopTimer.current) clearTimeout(stopTimer.current);
+    try { playerRef.current?.pause(); } catch (_) {}
+    setPlaying(false);
+  };
 
-  const preview = async () => {
-    if (!player) return;
+  // Play the selected slice from `start`, auto-stop after `length` seconds.
+  const playSlice = () => {
+    const p = playerRef.current;
+    if (!p) return;
+    if (stopTimer.current) clearTimeout(stopTimer.current);
     try {
-      if (playing) { player.pause(); setPlaying(false); return; }
-      player.seekTo(start);
-      player.play();
+      p.seekTo(start);
+      p.play();
       setPlaying(true);
-      // auto-stop at the end of the slice
-      setTimeout(() => { try { player.pause(); } catch (_) {} setPlaying(false); }, length * 1000);
+      stopTimer.current = setTimeout(() => stopPreview(), length * 1000);
     } catch (_) {}
+  };
+
+  const togglePreview = () => (playing ? stopPreview() : playSlice());
+
+  // When the user moves the START slider, instantly restart preview from the new point.
+  const onStartChange = (v) => {
+    setStart(v);
+    if (playing) {
+      const p = playerRef.current;
+      try {
+        p.seekTo(v);
+        if (stopTimer.current) clearTimeout(stopTimer.current);
+        stopTimer.current = setTimeout(() => stopPreview(), cap(length) * 1000);
+      } catch (_) {}
+    }
   };
 
   if (audioDuration === 0) {
     return <Text style={styles.loading}>Loading audio…</Text>;
   }
 
+  const maxStart = Math.max(0, audioDuration - 1);
+  // Length max is bounded by both remaining audio AND the video length.
+  const lengthMax = Math.max(1, Math.min(audioDuration - start, videoDuration || audioDuration));
+
   return (
     <View style={styles.box}>
       <View style={styles.rowBetween}>
         <Text style={styles.label}>Trim music</Text>
-        <TouchableOpacity onPress={preview} style={styles.previewBtn}>
+        <TouchableOpacity onPress={togglePreview} style={styles.previewBtn}>
           <Text style={styles.previewText}>{playing ? '⏸ Stop' : '▶ Preview'}</Text>
         </TouchableOpacity>
       </View>
@@ -77,27 +116,27 @@ export default function AudioTrimmer({ music, videoDuration, onChange }) {
         minimumValue={0}
         maximumValue={maxStart}
         value={start}
-        onValueChange={(v) => setStart(v)}
+        onValueChange={onStartChange}
         minimumTrackTintColor={colors.primary}
         maximumTrackTintColor={colors.border}
         thumbTintColor={colors.primary}
       />
 
       <Text style={styles.value}>
-        Length: {fmt(length)} {videoDuration ? `(video is ${fmt(videoDuration)})` : ''}
+        Length: {fmt(cap(length))}{videoDuration ? `  (max ${fmt(videoDuration)} — video length)` : ''}
       </Text>
       <Slider
         minimumValue={1}
-        maximumValue={maxLength}
-        value={Math.min(length, maxLength)}
-        onValueChange={(v) => setLength(v)}
+        maximumValue={lengthMax}
+        value={cap(length)}
+        onValueChange={(v) => setLength(cap(v))}
         minimumTrackTintColor={colors.accent}
         maximumTrackTintColor={colors.border}
         thumbTintColor={colors.accent}
       />
 
       <Text style={styles.summary}>
-        Using {fmt(start)} → {fmt(Math.min(start + length, audioDuration))} of the track
+        Using {fmt(start)} → {fmt(Math.min(start + cap(length), audioDuration))} of the track
       </Text>
     </View>
   );

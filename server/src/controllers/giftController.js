@@ -1,6 +1,18 @@
 const { pool } = require('../config/db');
 const { changeBalance, withTransaction } = require('./walletHelper');
 const { notify } = require('./notificationHelper');
+const { emitVideoStats } = require('../sockets');
+
+// Total diamonds a video has received (from gifts + direct sends), via the ledger.
+async function videoDiamondTotal(videoId) {
+  const [[row]] = await pool.query(
+    `SELECT COALESCE(SUM(amount),0) AS total FROM coin_transactions
+     WHERE currency='diamonds' AND amount>0 AND ref_id=?
+       AND reason IN ('gift_received','diamond_received')`,
+    [videoId]
+  );
+  return Number(row.total);
+}
 
 // GET /api/gifts/types  -> gift catalog
 async function getGiftTypes(req, res, next) {
@@ -53,8 +65,11 @@ async function sendGift(req, res, next) {
       message: `sent you a ${gift.name} (+${gift.diamond_value} 💎)`, app: req.app,
     });
 
+    const videoDiamonds = await videoDiamondTotal(videoId);
+    emitVideoStats(req.app, videoId, { diamonds: videoDiamonds });
+
     const [[me]] = await pool.query('SELECT coins, diamonds FROM users WHERE id = ?', [req.userId]);
-    res.json({ ok: true, coins: me.coins, diamonds: me.diamonds, gift: { name: gift.name, diamondValue: gift.diamond_value } });
+    res.json({ ok: true, coins: me.coins, diamonds: me.diamonds, videoDiamonds, gift: { name: gift.name, diamondValue: gift.diamond_value } });
   } catch (err) {
     next(err);
   }
@@ -89,9 +104,12 @@ async function sendDiamond(req, res, next) {
       message: `sent you ${amount} 💎`, app: req.app,
     });
 
+    const videoDiamonds = await videoDiamondTotal(videoId);
+    emitVideoStats(req.app, videoId, { diamonds: videoDiamonds });
+
     const [[me]] = await pool.query('SELECT coins, diamonds FROM users WHERE id = ?', [req.userId]);
     const [[creator]] = await pool.query('SELECT diamonds FROM users WHERE id = ?', [creatorId]);
-    res.json({ ok: true, coins: me.coins, diamonds: me.diamonds, creatorDiamonds: creator.diamonds, amount });
+    res.json({ ok: true, coins: me.coins, diamonds: me.diamonds, creatorDiamonds: creator.diamonds, videoDiamonds, amount });
   } catch (err) {
     next(err);
   }
