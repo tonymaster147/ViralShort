@@ -11,14 +11,14 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "axios": "^1.7.2",
+    "babel-preset-expo": "~54.0.10",
     "expo": "^54.0.0",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
     "react-native": "0.81.5"
   },
   "devDependencies": {
-    "@babel/core": "^7.24.0",
-    "babel-preset-expo": "^56.0.15"
+    "@babel/core": "^7.24.0"
   },
   "private": true
 }
