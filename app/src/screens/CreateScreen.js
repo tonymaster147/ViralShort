@@ -7,6 +7,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../components/ui';
+import AudioTrimmer from '../components/AudioTrimmer';
 import { uploadVideo, fetchSounds } from '../api/videos';
 import { FILTERS, filterOverlay } from '../theme/filters';
 import { colors } from '../theme/colors';
@@ -20,6 +21,8 @@ export default function CreateScreen({ navigation }) {
   const [soundId, setSoundId] = useState(null);
   const [music, setMusic] = useState(null);          // device music file
   const [muteOriginal, setMuteOriginal] = useState(false);
+  const [trim, setTrim] = useState({ start: 0, duration: null }); // music slice
+  const [videoDuration, setVideoDuration] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -39,10 +42,19 @@ export default function CreateScreen({ navigation }) {
     fetchSounds().then(setSounds).catch(() => {});
   }, []);
 
-  // Autoplay whenever an asset is set.
+  // Autoplay + read duration whenever an asset is set.
   useEffect(() => {
     if (asset) {
       try { player.play(); } catch (_) {}
+      // poll the player for its duration (used to cap the music trim length)
+      const poll = setInterval(() => {
+        if (player?.duration && player.duration > 0) {
+          setVideoDuration(player.duration);
+          clearInterval(poll);
+        }
+      }, 250);
+      const stop = setTimeout(() => clearInterval(poll), 5000);
+      return () => { clearInterval(poll); clearTimeout(stop); };
     }
   }, [asset]);
 
@@ -91,6 +103,8 @@ export default function CreateScreen({ navigation }) {
         soundId,
         music,
         muteOriginal,
+        musicStart: music ? trim.start : null,
+        musicDuration: music ? trim.duration : null,
       });
       Alert.alert('Posted! 🎉', music ? 'Your reel with custom music is live.' : 'Your reel is live.');
       setAsset(null);
@@ -99,6 +113,8 @@ export default function CreateScreen({ navigation }) {
       setSoundId(null);
       setMusic(null);
       setMuteOriginal(false);
+      setTrim({ start: 0, duration: null });
+      setVideoDuration(null);
       navigation.navigate('Feed');
     } catch (err) {
       const msg = err.response?.data?.error
@@ -180,12 +196,19 @@ export default function CreateScreen({ navigation }) {
           {/* Custom music from device */}
           <Text style={styles.label}>🎶 Custom music (from your device)</Text>
           {music ? (
-            <View style={styles.musicRow}>
-              <Text style={styles.musicName} numberOfLines={1}>♫ {music.name}</Text>
-              <TouchableOpacity onPress={() => { setMusic(null); setMuteOriginal(false); }}>
-                <Text style={styles.musicRemove}>✕</Text>
-              </TouchableOpacity>
-            </View>
+            <>
+              <View style={styles.musicRow}>
+                <Text style={styles.musicName} numberOfLines={1}>♫ {music.name}</Text>
+                <TouchableOpacity onPress={() => { setMusic(null); setMuteOriginal(false); setTrim({ start: 0, duration: null }); }}>
+                  <Text style={styles.musicRemove}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <AudioTrimmer
+                music={music}
+                videoDuration={videoDuration}
+                onChange={setTrim}
+              />
+            </>
           ) : (
             <TouchableOpacity style={styles.musicPick} onPress={pickMusic}>
               <Text style={styles.musicPickText}>＋ Add music from device</Text>

@@ -43,6 +43,8 @@ export async function uploadVideo(videoAsset, caption, onProgress, opts = {}) {
   if (opts.filter) form.append('filter', opts.filter);
   if (opts.soundId) form.append('soundId', String(opts.soundId));
   if (opts.muteOriginal) form.append('muteOriginal', 'true');
+  if (opts.musicStart != null) form.append('musicStart', String(opts.musicStart));
+  if (opts.musicDuration != null) form.append('musicDuration', String(opts.musicDuration));
   form.append('video', {
     uri: videoAsset.uri,
     name,

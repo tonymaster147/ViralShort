@@ -74,8 +74,12 @@ async function createVideo(req, res, next) {
     const filter = req.body.filter ? String(req.body.filter).slice(0, 30) : null;
     const soundId = req.body.soundId ? Number(req.body.soundId) : null;
     const muteOriginal = String(req.body.muteOriginal) === 'true';
+    // Music trim: which slice of the uploaded audio to use (seconds).
+    const musicStart = req.body.musicStart != null ? Math.max(0, Number(req.body.musicStart)) : 0;
+    const musicDuration = req.body.musicDuration != null ? Math.max(0, Number(req.body.musicDuration)) : null;
 
     let finalFilename = videoFile.filename;
+    let finalPath = videoFile.path;
 
     // If custom music was provided, merge it (mute or mix) into a new file.
     if (musicFile) {
@@ -88,9 +92,12 @@ async function createVideo(req, res, next) {
           videoPath: videoFile.path,
           audioPath: musicFile.path,
           muteOriginal,
+          musicStart,
+          musicDuration,
           outPath,
         });
         finalFilename = mergedName;
+        finalPath = outPath;
         // cleanup originals
         try { fs.unlinkSync(videoFile.path); } catch (_) {}
       } catch (mergeErr) {
@@ -101,10 +108,20 @@ async function createVideo(req, res, next) {
       }
     }
 
+    // Generate a thumbnail from the final video (best-effort).
+    let thumbPath = null;
+    try {
+      const { generateThumbnail } = require('../jobs/thumbnail');
+      const thumbName = await generateThumbnail(finalPath);
+      if (thumbName) thumbPath = `thumbs/${thumbName}`;
+    } catch (thumbErr) {
+      console.error('[thumb] error:', thumbErr.message);
+    }
+
     const relPath = `videos/${finalFilename}`;
     const [result] = await pool.query(
-      'INSERT INTO videos (user_id, video_path, caption, filter, sound_id) VALUES (?, ?, ?, ?, ?)',
-      [req.userId, relPath, caption, filter, soundId]
+      'INSERT INTO videos (user_id, video_path, thumb_path, caption, filter, sound_id) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.userId, relPath, thumbPath, caption, filter, soundId]
     );
 
     await attachHashtags(result.insertId, caption);
