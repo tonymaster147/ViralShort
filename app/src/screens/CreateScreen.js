@@ -3,15 +3,17 @@ import {
   View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { Button } from '../components/ui';
 import AudioTrimmer from '../components/AudioTrimmer';
-import { uploadVideo, fetchSounds } from '../api/videos';
-import { saveDraft } from '../api/drafts';
+import AudioPanel from '../components/AudioPanel';
+import VoiceOverRecorder from '../components/VoiceOverRecorder';
+import { uploadVideo } from '../api/videos';
+import { saveDraft, deleteDraft } from '../api/drafts';
 import { FILTERS, filterOverlay } from '../theme/filters';
 import { colors } from '../theme/colors';
 
@@ -20,37 +22,41 @@ export default function CreateScreen({ navigation, route }) {
   const [asset, setAsset] = useState(null);
   const [caption, setCaption] = useState('');
   const [filter, setFilter] = useState('none');
-  const [sounds, setSounds] = useState([]);
-  const [soundId, setSoundId] = useState(null);
-  const [music, setMusic] = useState(null);          // device music file
-  const [muteOriginal, setMuteOriginal] = useState(false);
-  const [trim, setTrim] = useState({ start: 0, duration: null }); // music slice
+
+  // Audio: a catalog sound OR a device music file (mutually exclusive); plus voice-over.
+  const [selectedSound, setSelectedSound] = useState(null); // { id, title, audioUrl, duration }
+  const [music, setMusic] = useState(null);                 // device file { uri, name }
+  const [voiceover, setVoiceover] = useState(null);         // recorded file { uri }
+  const [trim, setTrim] = useState({ start: 0, duration: null });
+  const [originalVolume, setOriginalVolume] = useState(1);
+  const [musicVolume, setMusicVolume] = useState(1);
+  const [voiceVolume, setVoiceVolume] = useState(1);
+  const [audioPanelOpen, setAudioPanelOpen] = useState(false);
+
   const [videoDuration, setVideoDuration] = useState(null);
-  const [coverTime, setCoverTime] = useState(0);     // cover frame timestamp
+  const [coverTime, setCoverTime] = useState(0);
   const [allowComments, setAllowComments] = useState(true);
   const [allowRemix, setAllowRemix] = useState(true);
   const [allowDownload, setAllowDownload] = useState(false);
-  const [draftId, setDraftId] = useState(null);      // set when resuming a draft
+  const [draftId, setDraftId] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  // Preview player — autoplays + loops once a video is picked.
-  // Muted in preview when the user chose to mute the original audio.
+  // The added audio source (music or catalog) used for trimming/preview.
+  const addedAudio = music
+    ? { uri: music.uri, label: music.name }
+    : selectedSound
+      ? { uri: selectedSound.audioUrl, label: selectedSound.title }
+      : null;
+
   const player = useVideoPlayer(asset?.uri || null, (p) => {
     p.loop = true;
-    p.muted = muteOriginal;
+    p.muted = originalVolume === 0;
   });
 
-  // keep preview mute in sync with the toggle
-  useEffect(() => {
-    if (player) player.muted = muteOriginal;
-  }, [muteOriginal, player]);
+  useEffect(() => { if (player) player.muted = originalVolume === 0; }, [originalVolume, player]);
 
-  useEffect(() => {
-    fetchSounds().then(setSounds).catch(() => {});
-  }, []);
-
-  // Resume a draft if one was passed in.
+  // Resume a draft if passed in.
   useEffect(() => {
     const draft = route?.params?.draft;
     if (draft) {
@@ -59,7 +65,7 @@ export default function CreateScreen({ navigation, route }) {
       setAsset({ uri: draft.videoUri });
       setCaption(s.caption || '');
       setFilter(s.filter || 'none');
-      setSoundId(s.soundId || null);
+      setSelectedSound(s.selectedSound || null);
       setCoverTime(s.coverTime || 0);
       setAllowComments(s.allowComments !== false);
       setAllowRemix(s.allowRemix !== false);
@@ -68,17 +74,9 @@ export default function CreateScreen({ navigation, route }) {
     }
   }, [route?.params?.draft]);
 
-  // Seek the preview to the cover frame when the user scrubs.
-  const onScrubCover = (t) => {
-    setCoverTime(t);
-    try { player.pause(); player.currentTime = t; } catch (_) {}
-  };
-
-  // Autoplay + read duration whenever an asset is set.
   useEffect(() => {
     if (asset) {
       try { player.play(); } catch (_) {}
-      // poll the player for its duration (used to cap the music trim length)
       const poll = setInterval(() => {
         if (player?.duration && player.duration > 0) {
           setVideoDuration(player.duration);
@@ -90,13 +88,17 @@ export default function CreateScreen({ navigation, route }) {
     }
   }, [asset]);
 
+  const onScrubCover = (t) => {
+    setCoverTime(t);
+    try { player.pause(); player.currentTime = t; } catch (_) {}
+  };
+
   const pickFrom = async (source) => {
     const opts = {
       mediaTypes: ImagePicker.MediaTypeOptions?.Videos ?? 'videos',
       videoMaxDuration: 60,
-      quality: 1, // capture at full quality
-      videoQuality: ImagePicker.UIImagePickerControllerQualityType?.High, // iOS high
-      videoExportPreset: ImagePicker.VideoExportPreset?.HighestQuality, // iOS export
+      quality: 1,
+      videoExportPreset: ImagePicker.VideoExportPreset?.HighestQuality,
     };
     let result;
     if (source === 'camera') {
@@ -114,16 +116,10 @@ export default function CreateScreen({ navigation, route }) {
     try { player.replace(a.uri); } catch (_) {}
   };
 
-  const pickMusic = async () => {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: 'audio/*',
-      copyToCacheDirectory: true,
-    });
-    if (result.canceled) return;
-    const file = result.assets[0];
-    setMusic({ uri: file.uri, name: file.name, mimeType: file.mimeType });
-    setMuteOriginal(true); // adding music defaults to muting the original
-  };
+  // AudioPanel callbacks
+  const onSelectSound = (sound) => { setSelectedSound(sound); setMusic(null); setTrim({ start: 0, duration: null }); if (originalVolume === 1) setOriginalVolume(0); };
+  const onSelectDevice = (file) => { setMusic(file); setSelectedSound(null); setTrim({ start: 0, duration: null }); if (originalVolume === 1) setOriginalVolume(0); };
+  const onSelectOriginal = () => { setSelectedSound(null); setMusic(null); setOriginalVolume(1); };
 
   const onUpload = async () => {
     if (!asset) return Alert.alert('Pick a video first');
@@ -132,29 +128,20 @@ export default function CreateScreen({ navigation, route }) {
     try {
       await uploadVideo(asset, caption, setProgress, {
         filter: filter !== 'none' ? filter : null,
-        soundId,
+        soundId: !music && selectedSound ? selectedSound.id : null,
         music,
-        muteOriginal,
-        musicStart: music ? trim.start : null,
-        musicDuration: music ? trim.duration : null,
+        voiceover,
+        musicStart: addedAudio ? trim.start : null,
+        musicDuration: addedAudio ? trim.duration : null,
+        originalVolume,
+        musicVolume,
+        voiceVolume,
         coverTime,
-        allowComments,
-        allowRemix,
-        allowDownload,
+        allowComments, allowRemix, allowDownload,
       });
-      // a published draft can be discarded
-      if (draftId) { try { await (await import('../api/drafts')).deleteDraft(draftId); } catch (_) {} }
+      if (draftId) { try { await deleteDraft(draftId); } catch (_) {} }
       Alert.alert('Posted! 🎉', 'Your reel is processing and will appear shortly (check your profile).');
-      setAsset(null);
-      setCaption('');
-      setFilter('none');
-      setSoundId(null);
-      setMusic(null);
-      setMuteOriginal(false);
-      setTrim({ start: 0, duration: null });
-      setVideoDuration(null);
-      setCoverTime(0);
-      setDraftId(null);
+      resetAll();
       navigation.navigate('Feed');
     } catch (err) {
       const msg = err.response?.data?.error
@@ -165,28 +152,30 @@ export default function CreateScreen({ navigation, route }) {
     }
   };
 
+  const resetAll = () => {
+    setAsset(null); setCaption(''); setFilter('none');
+    setSelectedSound(null); setMusic(null); setVoiceover(null);
+    setTrim({ start: 0, duration: null });
+    setOriginalVolume(1); setMusicVolume(1); setVoiceVolume(1);
+    setCoverTime(0); setDraftId(null); setVideoDuration(null);
+  };
+
   const onSaveDraft = async () => {
     if (!asset) return Alert.alert('Pick a video first');
     try {
       const saved = await saveDraft(
-        { caption, filter, soundId, coverTime, allowComments, allowRemix, allowDownload },
-        asset.uri,
-        draftId
+        { caption, filter, selectedSound, coverTime, allowComments, allowRemix, allowDownload },
+        asset.uri, draftId
       );
       setDraftId(saved.id);
       Alert.alert('Draft saved', 'Find it later in Create → Drafts.');
-    } catch (_) {
-      Alert.alert('Could not save draft');
-    }
+    } catch (_) { Alert.alert('Could not save draft'); }
   };
 
-  const selectedSound = sounds.find((s) => s.id === soundId);
+  const audioLabel = music ? music.name : selectedSound ? selectedSound.title : 'Original audio';
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <ScrollView
       style={styles.container}
       contentContainerStyle={{ padding: 20, paddingTop: insets.top + 10, paddingBottom: 120 }}
@@ -203,23 +192,23 @@ export default function CreateScreen({ navigation, route }) {
       {asset ? (
         <View style={styles.previewWrap}>
           <VideoView style={styles.preview} player={player} contentFit="cover" nativeControls={false} />
-          {/* filter overlay */}
           <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: filterOverlay(filter) }]} />
-          <TouchableOpacity style={styles.changeBtn} onPress={() => { setAsset(null); }}>
+          <TouchableOpacity style={styles.changeBtn} onPress={() => setAsset(null)}>
             <Text style={styles.changeText}>✕ Remove</Text>
           </TouchableOpacity>
-          {selectedSound ? (
-            <View style={styles.soundTag}><Text style={styles.soundTagText}>♪ {selectedSound.title}</Text></View>
-          ) : null}
+          <View style={styles.soundTag}>
+            <Ionicons name="musical-notes" size={12} color={colors.text} />
+            <Text style={styles.soundTagText} numberOfLines={1}>{audioLabel}</Text>
+          </View>
         </View>
       ) : (
         <View style={styles.pickRow}>
           <TouchableOpacity style={styles.pickCard} onPress={() => pickFrom('camera')}>
-            <Text style={styles.pickEmoji}>🎥</Text>
+            <Ionicons name="videocam" size={34} color={colors.text} />
             <Text style={styles.pickLabel}>Record</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.pickCard} onPress={() => pickFrom('library')}>
-            <Text style={styles.pickEmoji}>📁</Text>
+            <Ionicons name="images" size={34} color={colors.text} />
             <Text style={styles.pickLabel}>Gallery</Text>
           </TouchableOpacity>
         </View>
@@ -228,93 +217,50 @@ export default function CreateScreen({ navigation, route }) {
       {asset && (
         <>
           {/* Filters */}
-          <Text style={styles.label}>🎨 Filters</Text>
+          <Text style={styles.label}>Filters</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
             {FILTERS.map((f) => (
-              <TouchableOpacity
-                key={f.key}
-                style={[styles.chip, filter === f.key && styles.chipActive]}
-                onPress={() => setFilter(f.key)}
-              >
+              <TouchableOpacity key={f.key} style={[styles.chip, filter === f.key && styles.chipActive]} onPress={() => setFilter(f.key)}>
                 <View style={[styles.swatch, { backgroundColor: f.overlay === 'transparent' ? colors.card : f.overlay }]} />
                 <Text style={[styles.chipText, filter === f.key && styles.chipTextActive]}>{f.label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
 
-          {/* Built-in soundtracks */}
-          <Text style={styles.label}>🎵 Soundtrack</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-            <TouchableOpacity
-              style={[styles.chip, !soundId && styles.chipActive]}
-              onPress={() => setSoundId(null)}
-            >
-              <Text style={[styles.chipText, !soundId && styles.chipTextActive]}>None</Text>
-            </TouchableOpacity>
-            {sounds.map((s) => (
-              <TouchableOpacity
-                key={s.id}
-                style={[styles.chip, soundId === s.id && styles.chipActive]}
-                onPress={() => setSoundId(s.id)}
-              >
-                <Text style={[styles.chipText, soundId === s.id && styles.chipTextActive]}>♪ {s.title}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Custom music from device */}
-          <Text style={styles.label}>🎶 Custom music (from your device)</Text>
-          {music ? (
-            <>
-              <View style={styles.musicRow}>
-                <Text style={styles.musicName} numberOfLines={1}>♫ {music.name}</Text>
-                <TouchableOpacity onPress={() => { setMusic(null); setMuteOriginal(false); setTrim({ start: 0, duration: null }); }}>
-                  <Text style={styles.musicRemove}>✕</Text>
-                </TouchableOpacity>
-              </View>
-              <AudioTrimmer
-                music={music}
-                videoDuration={videoDuration}
-                onChange={setTrim}
-              />
-            </>
-          ) : (
-            <TouchableOpacity style={styles.musicPick} onPress={pickMusic}>
-              <Text style={styles.musicPickText}>＋ Add music from device</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Mute original toggle */}
-          <TouchableOpacity style={styles.toggleRow} onPress={() => setMuteOriginal((m) => !m)}>
-            <View style={[styles.checkbox, muteOriginal && styles.checkboxOn]}>
-              {muteOriginal && <Text style={styles.check}>✓</Text>}
-            </View>
-            <Text style={styles.toggleLabel}>Mute original video audio</Text>
+          {/* Sound */}
+          <Text style={styles.label}>Sound</Text>
+          <TouchableOpacity style={styles.soundBtn} onPress={() => setAudioPanelOpen(true)}>
+            <Ionicons name="musical-notes" size={18} color={colors.primary} />
+            <Text style={styles.soundBtnText} numberOfLines={1}>{audioLabel}</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </TouchableOpacity>
-          <Text style={styles.hint}>
-            {music
-              ? (muteOriginal ? 'Original sound off — only your music plays.' : 'Your music mixes over the original sound.')
-              : 'Tip: add music above, then choose to mute or mix the original.'}
-          </Text>
+
+          {addedAudio?.uri ? (
+            <AudioTrimmer music={{ uri: addedAudio.uri }} videoDuration={videoDuration} onChange={setTrim} />
+          ) : null}
+
+          {/* Voice-over */}
+          <Text style={styles.label}>Voice-over</Text>
+          <VoiceOverRecorder voiceover={voiceover} onRecorded={setVoiceover} onClear={() => setVoiceover(null)} />
+
+          {/* Volume mixer */}
+          <Text style={styles.label}>Volume</Text>
+          <VolumeRow label="Original" value={originalVolume} onChange={setOriginalVolume} />
+          {addedAudio ? <VolumeRow label="Music" value={musicVolume} onChange={setMusicVolume} /> : null}
+          {voiceover ? <VolumeRow label="Voice" value={voiceVolume} onChange={setVoiceVolume} /> : null}
         </>
       )}
 
       {asset && videoDuration ? (
         <>
-          {/* Cover frame picker */}
-          <Text style={styles.label}>🖼️ Cover frame</Text>
+          <Text style={[styles.label, { marginTop: 8 }]}>Cover frame</Text>
           <Slider
-            minimumValue={0}
-            maximumValue={Math.max(0.1, videoDuration)}
-            value={coverTime}
+            minimumValue={0} maximumValue={Math.max(0.1, videoDuration)} value={coverTime}
             onValueChange={onScrubCover}
-            minimumTrackTintColor={colors.primary}
-            maximumTrackTintColor={colors.border}
-            thumbTintColor={colors.primary}
+            minimumTrackTintColor={colors.primary} maximumTrackTintColor={colors.border} thumbTintColor={colors.primary}
           />
-          <Text style={styles.hint}>Drag to choose the frame shown as your reel's cover ({coverTime.toFixed(1)}s).</Text>
+          <Text style={styles.hint}>Drag to choose the cover frame ({coverTime.toFixed(1)}s).</Text>
 
-          {/* Permissions */}
           <Text style={[styles.label, { marginTop: 10 }]}>Settings</Text>
           {[
             ['Allow comments', allowComments, setAllowComments],
@@ -322,9 +268,7 @@ export default function CreateScreen({ navigation, route }) {
             ['Allow downloads', allowDownload, setAllowDownload],
           ].map(([lbl, val, set]) => (
             <TouchableOpacity key={lbl} style={styles.toggleRow} onPress={() => set((v) => !v)}>
-              <View style={[styles.checkbox, val && styles.checkboxOn]}>
-                {val && <Text style={styles.check}>✓</Text>}
-              </View>
+              <View style={[styles.checkbox, val && styles.checkboxOn]}>{val && <Ionicons name="checkmark" size={16} color={colors.text} />}</View>
               <Text style={styles.toggleLabel}>{lbl}</Text>
             </TouchableOpacity>
           ))}
@@ -333,13 +277,9 @@ export default function CreateScreen({ navigation, route }) {
 
       <Text style={styles.label}>Caption</Text>
       <TextInput
-        style={styles.captionInput}
-        value={caption}
-        onChangeText={setCaption}
-        placeholder="Say something… add #hashtags"
-        placeholderTextColor={colors.textMuted}
-        multiline
-        maxLength={500}
+        style={styles.captionInput} value={caption} onChangeText={setCaption}
+        placeholder="Say something… add #hashtags" placeholderTextColor={colors.textMuted}
+        multiline maxLength={500}
       />
 
       {uploading ? (
@@ -350,14 +290,31 @@ export default function CreateScreen({ navigation, route }) {
       ) : null}
 
       <Button title="Post Reel" onPress={onUpload} loading={uploading} disabled={!asset} />
-      {asset ? (
-        <View style={{ height: 10 }} />
-      ) : null}
-      {asset ? (
-        <Button title="Save draft" onPress={onSaveDraft} variant="outline" />
-      ) : null}
+      {asset ? <View style={{ height: 10 }} /> : null}
+      {asset ? <Button title="Save draft" onPress={onSaveDraft} variant="outline" /> : null}
+
+      <AudioPanel
+        visible={audioPanelOpen}
+        onClose={() => setAudioPanelOpen(false)}
+        onSelectSound={onSelectSound}
+        onSelectDevice={onSelectDevice}
+        onSelectOriginal={onSelectOriginal}
+      />
     </ScrollView>
     </KeyboardAvoidingView>
+  );
+}
+
+function VolumeRow({ label, value, onChange }) {
+  return (
+    <View style={styles.volRow}>
+      <Text style={styles.volLabel}>{label}</Text>
+      <Slider
+        style={{ flex: 1 }} minimumValue={0} maximumValue={1} value={value} onValueChange={onChange}
+        minimumTrackTintColor={colors.accent} maximumTrackTintColor={colors.border} thumbTintColor={colors.accent}
+      />
+      <Text style={styles.volPct}>{Math.round(value * 100)}%</Text>
+    </View>
   );
 }
 
@@ -367,17 +324,13 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: 24, fontWeight: '800' },
   draftsLink: { color: colors.primary, fontWeight: '800', fontSize: 15 },
   pickRow: { flexDirection: 'row', gap: 14, marginBottom: 20 },
-  pickCard: {
-    flex: 1, backgroundColor: colors.card, borderRadius: 16, paddingVertical: 36,
-    alignItems: 'center', borderWidth: 1, borderColor: colors.border,
-  },
-  pickEmoji: { fontSize: 40, marginBottom: 8 },
-  pickLabel: { color: colors.text, fontWeight: '700' },
+  pickCard: { flex: 1, backgroundColor: colors.card, borderRadius: 16, paddingVertical: 36, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  pickLabel: { color: colors.text, fontWeight: '700', marginTop: 8 },
   previewWrap: { height: 360, borderRadius: 16, overflow: 'hidden', marginBottom: 16, backgroundColor: '#000' },
   preview: { flex: 1 },
   changeBtn: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
   changeText: { color: colors.text, fontWeight: '700' },
-  soundTag: { position: 'absolute', left: 10, bottom: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
+  soundTag: { position: 'absolute', left: 10, bottom: 10, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, maxWidth: '70%' },
   soundTagText: { color: colors.text, fontWeight: '600', fontSize: 12 },
   label: { color: colors.textMuted, marginBottom: 8, fontWeight: '700' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.card, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8, borderWidth: 1, borderColor: colors.border },
@@ -385,21 +338,17 @@ const styles = StyleSheet.create({
   swatch: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: colors.border },
   chipText: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
   chipTextActive: { color: colors.text },
-  musicPick: { backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.accent, borderStyle: 'dashed', paddingVertical: 14, alignItems: 'center', marginBottom: 12 },
-  musicPickText: { color: colors.accent, fontWeight: '700' },
-  musicRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.card, borderRadius: 12, padding: 14, marginBottom: 12 },
-  musicName: { color: colors.text, fontWeight: '700', flex: 1, marginRight: 10 },
-  musicRemove: { color: colors.danger, fontWeight: '800', fontSize: 16 },
+  soundBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.card, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 12 },
+  soundBtnText: { color: colors.text, fontWeight: '700', flex: 1 },
+  volRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  volLabel: { color: colors.text, width: 64, fontWeight: '600', fontSize: 13 },
+  volPct: { color: colors.textMuted, width: 42, textAlign: 'right', fontSize: 12 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
   checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   checkboxOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  check: { color: colors.text, fontWeight: '800' },
   toggleLabel: { color: colors.text, fontWeight: '600' },
   hint: { color: colors.textMuted, fontSize: 12, marginBottom: 16, marginTop: 2 },
-  captionInput: {
-    backgroundColor: colors.card, borderRadius: 12, padding: 14, color: colors.text,
-    minHeight: 80, textAlignVertical: 'top', borderWidth: 1, borderColor: colors.border, marginBottom: 18,
-  },
+  captionInput: { backgroundColor: colors.card, borderRadius: 12, padding: 14, color: colors.text, minHeight: 80, textAlignVertical: 'top', borderWidth: 1, borderColor: colors.border, marginBottom: 18 },
   progressWrap: { height: 26, backgroundColor: colors.card, borderRadius: 13, overflow: 'hidden', marginBottom: 14, justifyContent: 'center' },
   progressBar: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: colors.primary },
   progressText: { color: colors.text, textAlign: 'center', fontWeight: '700', fontSize: 12 },

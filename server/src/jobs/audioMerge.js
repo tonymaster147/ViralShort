@@ -1,55 +1,72 @@
-const path = require('path');
-const fs = require('fs');
 const ffmpegPath = require('ffmpeg-static');
 const ffmpeg = require('fluent-ffmpeg');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// Merge a music track into a video.
-//   videoPath  - absolute path to the source video
-//   audioPath  - absolute path to the music file
-//   muteOriginal - if true, drop the original video audio entirely;
-//                  if false, mix music UNDER the original audio
-//   musicStart - seconds offset into the music to start from (default 0)
-//   musicDuration - seconds of music to use (default: until video ends)
-//   outPath    - absolute path to write the result
-// Resolves with outPath. The chosen music slice plays from the video start.
-function mergeAudio({ videoPath, audioPath, muteOriginal, musicStart = 0, musicDuration = null, outPath }) {
+// Merge audio into a video with per-track volume control.
+//
+//   videoPath       - source video (input 0)
+//   originalVolume  - 0..1 gain for the video's own audio (0 = muted)
+//   tracks          - array of added audio sources, each:
+//                       { path, start=0, duration=null, volume=1 }
+//                     (e.g. music + voice-over)
+//   outPath         - destination
+//
+// Builds a filter graph that volume-adjusts every present source and mixes them.
+// Video stream is copied (no re-encode) for speed.
+function mergeAudio({ videoPath, originalVolume = 1, tracks = [], outPath }) {
   return new Promise((resolve, reject) => {
-    // Apply the trim to the music INPUT: seek to start (-ss) and limit length (-t).
-    const audioInputOpts = [];
-    if (musicStart > 0) audioInputOpts.push('-ss', String(musicStart));
-    if (musicDuration && musicDuration > 0) audioInputOpts.push('-t', String(musicDuration));
+    const command = ffmpeg(videoPath);
 
-    const command = ffmpeg(videoPath).input(audioPath);
-    if (audioInputOpts.length) command.inputOptions(audioInputOpts);
+    // Add each track input with its own trim (-ss / -t).
+    tracks.forEach((t) => {
+      const opts = [];
+      if (t.start > 0) opts.push('-ss', String(t.start));
+      if (t.duration && t.duration > 0) opts.push('-t', String(t.duration));
+      command.input(t.path);
+      if (opts.length) command.inputOptions(opts);
+    });
 
-    if (muteOriginal) {
-      // Use only the music; cut audio to the shortest stream (video length).
+    const labels = [];
+    const filters = [];
+
+    // Original audio (input 0) — include unless muted (volume 0).
+    if (originalVolume > 0) {
+      filters.push(`[0:a]volume=${originalVolume}[a0]`);
+      labels.push('[a0]');
+    }
+    // Added tracks are inputs 1..N.
+    tracks.forEach((t, i) => {
+      const idx = i + 1;
+      const vol = t.volume != null ? t.volume : 1;
+      filters.push(`[${idx}:a]volume=${vol}[t${idx}]`);
+      labels.push(`[t${idx}]`);
+    });
+
+    if (labels.length === 0) {
+      // Everything muted → strip audio entirely.
       command
-        .outputOptions([
-          '-map', '0:v:0',      // video from input 0
-          '-map', '1:a:0',      // audio from input 1 (music)
-          '-c:v', 'copy',       // don't re-encode video (fast)
-          '-shortest',
-        ]);
+        .outputOptions(['-map', '0:v:0', '-an', '-c:v', 'copy'])
+        .on('end', () => resolve(outPath))
+        .on('error', reject)
+        .save(outPath);
+      return;
+    }
+
+    let aout;
+    if (labels.length === 1) {
+      aout = labels[0];
+      command.complexFilter(filters);
     } else {
-      // Mix original audio + music together.
-      command
-        .complexFilter([
-          '[0:a][1:a]amix=inputs=2:duration=shortest:dropout_transition=0[aout]',
-        ])
-        .outputOptions([
-          '-map', '0:v:0',
-          '-map', '[aout]',
-          '-c:v', 'copy',
-          '-shortest',
-        ]);
+      filters.push(`${labels.join('')}amix=inputs=${labels.length}:duration=shortest:dropout_transition=0[aout]`);
+      aout = '[aout]';
+      command.complexFilter(filters);
     }
 
     command
+      .outputOptions(['-map', '0:v:0', '-map', aout, '-c:v', 'copy', '-shortest'])
       .on('end', () => resolve(outPath))
-      .on('error', (err) => reject(err))
+      .on('error', reject)
       .save(outPath);
   });
 }

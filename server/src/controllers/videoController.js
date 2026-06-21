@@ -80,6 +80,7 @@ async function createVideo(req, res, next) {
     // Support both upload.single (req.file) and upload.fields (req.files).
     const videoFile = req.file || req.files?.video?.[0];
     const musicFile = req.files?.music?.[0];
+    const voiceFile = req.files?.voiceover?.[0];
     if (!videoFile) return res.status(400).json({ ok: false, error: 'No video file uploaded' });
 
     const caption = (req.body.caption || '').slice(0, 500);
@@ -89,40 +90,58 @@ async function createVideo(req, res, next) {
     // Music trim: which slice of the uploaded audio to use (seconds).
     const musicStart = req.body.musicStart != null ? Math.max(0, Number(req.body.musicStart)) : 0;
     const musicDuration = req.body.musicDuration != null ? Math.max(0, Number(req.body.musicDuration)) : null;
+    // Volume controls (0..1)
+    const clampVol = (v, d) => (v != null && !isNaN(Number(v)) ? Math.max(0, Math.min(2, Number(v))) : d);
+    const originalVolume = muteOriginal ? 0 : clampVol(req.body.originalVolume, 1);
+    const musicVolume = clampVol(req.body.musicVolume, 1);
+    const voiceVolume = clampVol(req.body.voiceVolume, 1);
     // Publish options
     const coverTime = req.body.coverTime != null ? Math.max(0, Number(req.body.coverTime)) : 0;
     const allowComments = req.body.allowComments != null ? (String(req.body.allowComments) === 'true' ? 1 : 0) : 1;
     const allowRemix = req.body.allowRemix != null ? (String(req.body.allowRemix) === 'true' ? 1 : 0) : 1;
     const allowDownload = req.body.allowDownload != null ? (String(req.body.allowDownload) === 'true' ? 1 : 0) : 0;
 
+    // Resolve the added music source: device music file takes precedence,
+    // else a catalog sound that has an audio file.
+    let musicPath = musicFile ? musicFile.path : null;
+    if (!musicPath && soundId) {
+      const [[snd]] = await pool.query('SELECT audio_path FROM sounds WHERE id = ?', [soundId]);
+      if (snd?.audio_path) {
+        musicPath = path.join(__dirname, '..', '..', 'uploads', snd.audio_path);
+      }
+    }
+
+    // Build the track list for the mixer.
+    const tracks = [];
+    if (musicPath) tracks.push({ path: musicPath, start: musicStart, duration: musicDuration, volume: musicVolume });
+    if (voiceFile) tracks.push({ path: voiceFile.path, start: 0, duration: null, volume: voiceVolume });
+
     let finalFilename = videoFile.filename;
     let finalPath = videoFile.path;
 
-    // If custom music was provided, merge it (mute or mix) into a new file.
-    if (musicFile) {
+    // Merge if there's any added track OR the user changed the original volume.
+    const needsMerge = tracks.length > 0 || originalVolume !== 1;
+    if (needsMerge) {
       try {
         const { mergeAudio } = require('../jobs/audioMerge');
         const dir = path.dirname(videoFile.path);
         const mergedName = `merged_${Date.now()}_${Math.round(Math.random() * 1e9)}.mp4`;
         const outPath = path.join(dir, mergedName);
-        await mergeAudio({
-          videoPath: videoFile.path,
-          audioPath: musicFile.path,
-          muteOriginal,
-          musicStart,
-          musicDuration,
-          outPath,
-        });
+        await mergeAudio({ videoPath: videoFile.path, originalVolume, tracks, outPath });
         finalFilename = mergedName;
         finalPath = outPath;
-        // cleanup originals
         try { fs.unlinkSync(videoFile.path); } catch (_) {}
       } catch (mergeErr) {
         console.error('[merge] failed, using original video:', mergeErr.message);
-        // fall back to the original video if merge fails
       } finally {
         try { if (musicFile) fs.unlinkSync(musicFile.path); } catch (_) {}
+        try { if (voiceFile) fs.unlinkSync(voiceFile.path); } catch (_) {}
       }
+    }
+
+    // Bump usage_count for a catalog sound that was actually used.
+    if (soundId) {
+      pool.query('UPDATE sounds SET usage_count = usage_count + 1 WHERE id = ?', [soundId]).catch(() => {});
     }
 
     // Insert immediately as 'processing' so the request returns fast; the
@@ -130,9 +149,9 @@ async function createVideo(req, res, next) {
     const relPath = `videos/${finalFilename}`;
     const [result] = await pool.query(
       `INSERT INTO videos
-         (user_id, video_path, caption, filter, sound_id, status, allow_comments, allow_remix, allow_download)
-       VALUES (?, ?, ?, ?, ?, 'processing', ?, ?, ?)`,
-      [req.userId, relPath, caption, filter, soundId, allowComments, allowRemix, allowDownload]
+         (user_id, video_path, caption, filter, sound_id, status, allow_comments, allow_remix, allow_download, has_voiceover)
+       VALUES (?, ?, ?, ?, ?, 'processing', ?, ?, ?, ?)`,
+      [req.userId, relPath, caption, filter, soundId, allowComments, allowRemix, allowDownload, voiceFile ? 1 : 0]
     );
     const videoId = result.insertId;
 
@@ -296,11 +315,97 @@ async function setCover(req, res, next) {
   }
 }
 
-// GET /api/videos/sounds  -> list available soundtracks
+// Shape a sound row (+ optional saved flag).
+function publicSound(s, savedSet) {
+  return {
+    id: s.id,
+    title: s.title,
+    author: s.author_name,
+    audioUrl: fileUrl(s.audio_path),
+    artUrl: fileUrl(s.art_path),
+    duration: s.duration != null ? Number(s.duration) : null,
+    usageCount: s.usage_count || 0,
+    trending: !!s.is_trending,
+    saved: savedSet ? savedSet.has(s.id) : undefined,
+  };
+}
+
+async function savedSetFor(userId) {
+  if (!userId) return new Set();
+  const [rows] = await pool.query('SELECT sound_id FROM saved_sounds WHERE user_id = ?', [userId]);
+  return new Set(rows.map((r) => r.sound_id));
+}
+
+// GET /api/videos/sounds  -> full catalog (with saved flag if authed)
 async function getSounds(req, res, next) {
   try {
-    const [rows] = await pool.query('SELECT id, title, author_name FROM sounds ORDER BY id');
-    res.json({ ok: true, sounds: rows.map((s) => ({ id: s.id, title: s.title, author: s.author_name })) });
+    const [rows] = await pool.query('SELECT * FROM sounds ORDER BY usage_count DESC, id');
+    const saved = await savedSetFor(req.userId);
+    res.json({ ok: true, sounds: rows.map((s) => publicSound(s, saved)) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /api/videos/sounds/trending
+async function getTrendingSounds(req, res, next) {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM sounds WHERE is_trending = 1 ORDER BY usage_count DESC LIMIT 30'
+    );
+    const saved = await savedSetFor(req.userId);
+    res.json({ ok: true, sounds: rows.map((s) => publicSound(s, saved)) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /api/videos/sounds/search?q=
+async function searchSounds(req, res, next) {
+  try {
+    const q = `%${(req.query.q || '').trim()}%`;
+    const [rows] = await pool.query(
+      'SELECT * FROM sounds WHERE title LIKE ? OR author_name LIKE ? ORDER BY usage_count DESC LIMIT 30',
+      [q, q]
+    );
+    const saved = await savedSetFor(req.userId);
+    res.json({ ok: true, sounds: rows.map((s) => publicSound(s, saved)) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /api/videos/sounds/saved  (auth)
+async function getSavedSounds(req, res, next) {
+  try {
+    const [rows] = await pool.query(
+      `SELECT s.* FROM saved_sounds ss JOIN sounds s ON s.id = ss.sound_id
+       WHERE ss.user_id = ? ORDER BY ss.created_at DESC`,
+      [req.userId]
+    );
+    res.json({ ok: true, sounds: rows.map((s) => publicSound(s, new Set(rows.map((r) => r.id)))) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/videos/sounds/:id/save  (auth) -> toggle saved
+async function toggleSavedSound(req, res, next) {
+  try {
+    const soundId = Number(req.params.id);
+    const [[exists]] = await pool.query(
+      'SELECT 1 AS x FROM saved_sounds WHERE user_id = ? AND sound_id = ? LIMIT 1',
+      [req.userId, soundId]
+    );
+    let saved;
+    if (exists) {
+      await pool.query('DELETE FROM saved_sounds WHERE user_id = ? AND sound_id = ?', [req.userId, soundId]);
+      saved = false;
+    } else {
+      await pool.query('INSERT IGNORE INTO saved_sounds (user_id, sound_id) VALUES (?, ?)', [req.userId, soundId]);
+      saved = true;
+    }
+    res.json({ ok: true, saved });
   } catch (err) {
     next(err);
   }
@@ -315,6 +420,10 @@ module.exports = {
   addView,
   deleteVideo,
   getSounds,
+  getTrendingSounds,
+  searchSounds,
+  getSavedSounds,
+  toggleSavedSound,
   setCover,
   publicVideo,
 };

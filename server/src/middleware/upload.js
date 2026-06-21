@@ -46,10 +46,11 @@ function makeMixedUploader(subdir) {
 
 const uploadAvatar = makeUploader('avatars', 'image/');
 const uploadVideo = makeUploader('videos', 'video/');
-// Accepts fields: video (required), music (optional)
+// Accepts fields: video (required), music (optional), voiceover (optional)
 const uploadVideoWithMusic = makeMixedUploader('videos').fields([
   { name: 'video', maxCount: 1 },
   { name: 'music', maxCount: 1 },
+  { name: 'voiceover', maxCount: 1 },
 ]);
 
 module.exports = { uploadAvatar, uploadVideo, uploadVideoWithMusic, UPLOAD_ROOT };

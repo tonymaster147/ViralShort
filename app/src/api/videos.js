@@ -20,6 +20,26 @@ export async function fetchSounds() {
   return res.data.sounds;
 }
 
+export async function fetchTrendingSounds() {
+  const res = await client.get('/videos/sounds/trending');
+  return res.data.sounds;
+}
+
+export async function searchSounds(q) {
+  const res = await client.get('/videos/sounds/search', { params: { q } });
+  return res.data.sounds;
+}
+
+export async function fetchSavedSounds() {
+  const res = await client.get('/videos/sounds/saved');
+  return res.data.sounds;
+}
+
+export async function toggleSavedSound(soundId) {
+  const res = await client.post(`/videos/sounds/${soundId}/save`);
+  return res.data; // { saved }
+}
+
 export async function addView(videoId) {
   try {
     await client.post(`/videos/${videoId}/view`);
@@ -59,6 +79,9 @@ export async function uploadVideo(videoAsset, caption, onProgress, opts = {}) {
   if (opts.allowComments != null) form.append('allowComments', String(opts.allowComments));
   if (opts.allowRemix != null) form.append('allowRemix', String(opts.allowRemix));
   if (opts.allowDownload != null) form.append('allowDownload', String(opts.allowDownload));
+  if (opts.originalVolume != null) form.append('originalVolume', String(opts.originalVolume));
+  if (opts.musicVolume != null) form.append('musicVolume', String(opts.musicVolume));
+  if (opts.voiceVolume != null) form.append('voiceVolume', String(opts.voiceVolume));
   form.append('video', {
     uri: videoAsset.uri,
     name,
@@ -69,6 +92,13 @@ export async function uploadVideo(videoAsset, caption, onProgress, opts = {}) {
       uri: opts.music.uri,
       name: opts.music.name || `music_${Date.now()}.mp3`,
       type: opts.music.mimeType || 'audio/mpeg',
+    });
+  }
+  if (opts.voiceover?.uri) {
+    form.append('voiceover', {
+      uri: opts.voiceover.uri,
+      name: opts.voiceover.name || `voice_${Date.now()}.m4a`,
+      type: opts.voiceover.mimeType || 'audio/mp4',
     });
   }
   const res = await client.post('/videos', form, {

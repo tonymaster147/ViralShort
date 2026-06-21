@@ -10,6 +10,10 @@ const {
   addView,
   deleteVideo,
   getSounds,
+  getTrendingSounds,
+  searchSounds,
+  getSavedSounds,
+  toggleSavedSound,
   setCover,
 } = require('../controllers/videoController');
 const {
@@ -19,7 +23,12 @@ const {
 const router = express.Router();
 
 router.post('/', requireAuth, uploadVideoWithMusic, createVideo);
-router.get('/sounds', getSounds);
+// Sounds (specific routes before /:id)
+router.get('/sounds/trending', optionalAuth, getTrendingSounds);
+router.get('/sounds/search', optionalAuth, searchSounds);
+router.get('/sounds/saved', requireAuth, getSavedSounds);
+router.post('/sounds/:id/save', requireAuth, toggleSavedSound);
+router.get('/sounds', optionalAuth, getSounds);
 router.get('/feed', optionalAuth, getFeed);
 router.get('/following', requireAuth, getFollowingFeed);
 router.get('/user/:id', optionalAuth, getUserVideos);
