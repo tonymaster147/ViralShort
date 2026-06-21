@@ -1,10 +1,14 @@
 const http = require('http');
 const app = require('./app');
 const { checkConnection } = require('./config/db');
+const { attachSockets } = require('./sockets');
 require('dotenv').config();
 
 const PORT = Number(process.env.PORT) || 4000;
 const server = http.createServer(app);
+
+// Real-time layer (DMs + notifications)
+attachSockets(server, app);
 
 (async () => {
   try {

@@ -29,6 +29,7 @@ app.use('/api/videos', require('./routes/videos'));
 app.use('/api/comments', require('./routes/comments'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/discover', require('./routes/discover'));
+app.use('/api/conversations', require('./routes/conversations'));
 
 // 404 handler
 app.use((req, res) => {

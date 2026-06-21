@@ -23,7 +23,7 @@ async function toggleLike(req, res, next) {
     } else {
       await pool.query('INSERT INTO likes (user_id, video_id) VALUES (?, ?)', [req.userId, videoId]);
       liked = true;
-      await notify({ userId: video.user_id, actorId: req.userId, type: 'like', videoId });
+      await notify({ userId: video.user_id, actorId: req.userId, type: 'like', videoId, app: req.app });
     }
 
     const [[{ c }]] = await pool.query('SELECT COUNT(*) AS c FROM likes WHERE video_id = ?', [videoId]);
@@ -100,10 +100,10 @@ async function addComment(req, res, next) {
     );
 
     // Notify the video owner (and the parent comment author if it's a reply).
-    await notify({ userId: video.user_id, actorId: req.userId, type: 'comment', videoId });
+    await notify({ userId: video.user_id, actorId: req.userId, type: 'comment', videoId, app: req.app });
     if (parentId) {
       const [[parent]] = await pool.query('SELECT user_id FROM comments WHERE id = ?', [parentId]);
-      if (parent) await notify({ userId: parent.user_id, actorId: req.userId, type: 'comment', videoId });
+      if (parent) await notify({ userId: parent.user_id, actorId: req.userId, type: 'comment', videoId, app: req.app });
     }
 
     const [rows] = await pool.query(
@@ -154,7 +154,7 @@ async function toggleFollow(req, res, next) {
     } else {
       await pool.query('INSERT INTO follows (follower_id, following_id) VALUES (?, ?)', [req.userId, targetId]);
       following = true;
-      await notify({ userId: targetId, actorId: req.userId, type: 'follow' });
+      await notify({ userId: targetId, actorId: req.userId, type: 'follow', app: req.app });
     }
 
     const [[{ c }]] = await pool.query('SELECT COUNT(*) AS c FROM follows WHERE following_id = ?', [targetId]);

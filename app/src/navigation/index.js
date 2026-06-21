@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -18,7 +18,10 @@ import UserProfileScreen from '../screens/UserProfileScreen';
 import DiscoverScreen from '../screens/DiscoverScreen';
 import HashtagScreen from '../screens/HashtagScreen';
 import VideoScreen from '../screens/VideoScreen';
-import PlaceholderScreen from '../screens/PlaceholderScreen';
+import InboxScreen from '../screens/InboxScreen';
+import ChatScreen from '../screens/ChatScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import { useSocket } from '../context/SocketContext';
 
 const navTheme = {
   ...DefaultTheme,
@@ -58,19 +61,22 @@ function ProfileNavigator() {
       <ProfileStack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profile' }} />
       <ProfileStack.Screen name="Hashtag" component={HashtagScreen} options={{ title: 'Hashtag' }} />
       <ProfileStack.Screen name="Video" component={VideoScreen} options={{ headerShown: false }} />
+      <ProfileStack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
+      <ProfileStack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
     </ProfileStack.Navigator>
   );
 }
 
 const stackOpts = { headerStyle: { backgroundColor: colors.surface }, headerTintColor: colors.text };
 
-// Shared discovery routes added to multiple stacks.
+// Shared routes added to multiple stacks (so UserProfile/Chat/Video work anywhere).
 function discoveryScreens(Stack) {
   return (
     <>
       <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profile' }} />
       <Stack.Screen name="Hashtag" component={HashtagScreen} options={{ title: 'Hashtag' }} />
       <Stack.Screen name="Video" component={VideoScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
     </>
   );
 }
@@ -97,16 +103,39 @@ function DiscoverNavigator() {
   );
 }
 
-// Placeholder tab screens (real ones land in later phases)
-const InboxScreen = () => <PlaceholderScreen title="Inbox" emoji="💬" phase="Phase 5" />;
+// Inbox stack (conversations + chat + tappable profiles/videos)
+const InboxStack = createNativeStackNavigator();
+function InboxNavigator() {
+  return (
+    <InboxStack.Navigator screenOptions={stackOpts}>
+      <InboxStack.Screen name="InboxHome" component={InboxScreen} options={{ headerShown: false }} />
+      {discoveryScreens(InboxStack)}
+    </InboxStack.Navigator>
+  );
+}
 
 function tabIcon(label) {
   return ({ color }) => <Text style={{ color, fontSize: 22 }}>{label}</Text>;
 }
 
+// Small red dot badge for unread counts on a tab icon.
+function badgedIcon(label, count) {
+  return ({ color }) => (
+    <View>
+      <Text style={{ color, fontSize: 22 }}>{label}</Text>
+      {count > 0 && (
+        <View style={badgeStyle.dot}>
+          <Text style={badgeStyle.dotText}>{count > 9 ? '9+' : count}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 // --- Main app tabs ---
 const Tab = createBottomTabNavigator();
 function MainNavigator() {
+  const { unreadMessages, unreadNotifications } = useSocket();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -119,11 +148,20 @@ function MainNavigator() {
       <Tab.Screen name="Feed" component={FeedNavigator} options={{ tabBarIcon: tabIcon('🏠') }} />
       <Tab.Screen name="Discover" component={DiscoverNavigator} options={{ tabBarIcon: tabIcon('🔍') }} />
       <Tab.Screen name="Create" component={CreateScreen} options={{ tabBarIcon: tabIcon('➕') }} />
-      <Tab.Screen name="Inbox" component={InboxScreen} options={{ tabBarIcon: tabIcon('💬') }} />
+      <Tab.Screen
+        name="Inbox"
+        component={InboxNavigator}
+        options={{ tabBarIcon: badgedIcon('💬', unreadMessages) }}
+      />
       <Tab.Screen name="Profile" component={ProfileNavigator} options={{ tabBarIcon: tabIcon('👤') }} />
     </Tab.Navigator>
   );
 }
+
+const badgeStyle = StyleSheet.create({
+  dot: { position: 'absolute', top: -6, right: -10, backgroundColor: colors.primary, borderRadius: 9, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  dotText: { color: colors.text, fontSize: 10, fontWeight: '800' },
+});
 
 export default function RootNavigation() {
   const { user, loading } = useAuth();

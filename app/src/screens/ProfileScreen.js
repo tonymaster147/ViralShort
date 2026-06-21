@@ -37,6 +37,16 @@ export default function ProfileScreen({ navigation }) {
     }, [user?.id])
   );
 
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ paddingHorizontal: 12 }}>
+          <Text style={{ fontSize: 20 }}>🔔</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
+
   if (!user) return null;
 
   const initial = (user.displayName || user.username || '?').charAt(0).toUpperCase();

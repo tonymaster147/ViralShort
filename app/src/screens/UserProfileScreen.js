@@ -5,6 +5,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { fetchUser, toggleFollow } from '../api/social';
 import { fetchUserVideos } from '../api/videos';
+import { openConversation } from '../api/messages';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
 
@@ -64,6 +65,13 @@ export default function UserProfileScreen({ route, navigation }) {
     }
   };
 
+  const onMessage = async () => {
+    try {
+      const { conversationId, user: other } = await openConversation(userId);
+      navigation.navigate('Chat', { conversationId, user: other });
+    } catch (_) {}
+  };
+
   if (loading || !user) {
     return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
@@ -93,12 +101,17 @@ export default function UserProfileScreen({ route, navigation }) {
       </View>
 
       {!isMe && (
-        <TouchableOpacity
-          style={[styles.followBtn, following && styles.followingBtn]}
-          onPress={onFollow}
-        >
-          <Text style={styles.followText}>{following ? 'Following' : 'Follow'}</Text>
-        </TouchableOpacity>
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={[styles.followBtn, following && styles.followingBtn, { flex: 1 }]}
+            onPress={onFollow}
+          >
+            <Text style={styles.followText}>{following ? 'Following' : 'Follow'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.messageBtn} onPress={onMessage}>
+            <Text style={styles.followText}>Message</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       <Text style={styles.gridTitle}>Videos</Text>
@@ -145,8 +158,10 @@ const styles = StyleSheet.create({
   stat: { alignItems: 'center' },
   statValue: { color: colors.text, fontSize: 20, fontWeight: '800' },
   statLabel: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  actionRow: { flexDirection: 'row', gap: 10 },
   followBtn: { backgroundColor: colors.primary, borderRadius: 30, paddingVertical: 12, alignItems: 'center' },
   followingBtn: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  messageBtn: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 30, paddingVertical: 12, paddingHorizontal: 24, alignItems: 'center' },
   followText: { color: colors.text, fontWeight: '800' },
   gridTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 24, marginBottom: 6 },
   tile: { width: TILE, height: TILE * 1.4, backgroundColor: colors.card, borderRadius: 6, overflow: 'hidden', justifyContent: 'flex-end' },
