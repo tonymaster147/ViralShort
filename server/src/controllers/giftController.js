@@ -60,4 +60,41 @@ async function sendGift(req, res, next) {
   }
 }
 
-module.exports = { getGiftTypes, sendGift };
+// POST /api/gifts/diamond  body: { videoId, amount }
+// Directly transfer diamonds from sender to the video's creator.
+// Leaderboard ranks by diamonds received (users.diamonds).
+async function sendDiamond(req, res, next) {
+  try {
+    const videoId = Number(req.body.videoId);
+    const amount = Math.max(1, Math.min(Number(req.body.amount) || 1, 10000));
+    if (!videoId) return res.status(400).json({ ok: false, error: 'videoId required' });
+
+    const [[video]] = await pool.query('SELECT user_id FROM videos WHERE id = ?', [videoId]);
+    if (!video) return res.status(404).json({ ok: false, error: 'Video not found' });
+    if (video.user_id === req.userId) {
+      return res.status(400).json({ ok: false, error: "You can't send diamonds to your own video" });
+    }
+
+    const creatorId = video.user_id;
+
+    await withTransaction(async (conn) => {
+      // sender spends diamonds (guarded — throws if insufficient)
+      await changeBalance(conn, req.userId, 'diamonds', -amount, 'diamond_sent', videoId);
+      // creator receives diamonds (ledger entry drives the weekly leaderboard)
+      await changeBalance(conn, creatorId, 'diamonds', amount, 'diamond_received', videoId);
+    });
+
+    await notify({
+      userId: creatorId, actorId: req.userId, type: 'gift', videoId,
+      message: `sent you ${amount} 💎`, app: req.app,
+    });
+
+    const [[me]] = await pool.query('SELECT coins, diamonds FROM users WHERE id = ?', [req.userId]);
+    const [[creator]] = await pool.query('SELECT diamonds FROM users WHERE id = ?', [creatorId]);
+    res.json({ ok: true, coins: me.coins, diamonds: me.diamonds, creatorDiamonds: creator.diamonds, amount });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getGiftTypes, sendGift, sendDiamond };

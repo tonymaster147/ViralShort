@@ -30,7 +30,26 @@ function makeUploader(subdir, allowedMimePrefix) {
   });
 }
 
+// Mixed uploader for video + optional music (no mime restriction so audio passes).
+function makeMixedUploader(subdir) {
+  const dest = path.join(UPLOAD_ROOT, subdir);
+  fs.mkdirSync(dest, { recursive: true });
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, dest),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname) || '';
+      cb(null, `${Date.now()}_${Math.round(Math.random() * 1e9)}${ext}`);
+    },
+  });
+  return multer({ storage, limits: { fileSize: 200 * 1024 * 1024 } });
+}
+
 const uploadAvatar = makeUploader('avatars', 'image/');
 const uploadVideo = makeUploader('videos', 'video/');
+// Accepts fields: video (required), music (optional)
+const uploadVideoWithMusic = makeMixedUploader('videos').fields([
+  { name: 'video', maxCount: 1 },
+  { name: 'music', maxCount: 1 },
+]);
 
-module.exports = { uploadAvatar, uploadVideo, UPLOAD_ROOT };
+module.exports = { uploadAvatar, uploadVideo, uploadVideoWithMusic, UPLOAD_ROOT };

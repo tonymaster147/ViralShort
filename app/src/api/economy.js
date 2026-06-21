@@ -28,6 +28,11 @@ export async function sendGift(giftTypeId, videoId) {
   return res.data; // { coins, diamonds, gift }
 }
 
+export async function sendDiamond(videoId, amount) {
+  const res = await client.post('/gifts/diamond', { videoId, amount });
+  return res.data; // { diamonds, creatorDiamonds, amount }
+}
+
 // Leaderboard + contest
 export async function fetchLeaderboard(period = 'all') {
   const res = await client.get('/leaderboard', { params: { period } });

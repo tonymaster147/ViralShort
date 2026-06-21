@@ -10,14 +10,16 @@ async function getLeaderboard(req, res, next) {
     const period = req.query.period === 'week' ? 'week' : 'all';
     let rows;
     if (period === 'week') {
-      // diamonds received via gifts in the last 7 days
+      // diamonds RECEIVED in the last 7 days (gift_received + diamond_received),
+      // taken straight from the ledger so direct sends + coin-gifts both count.
       [rows] = await pool.query(
         `SELECT u.id, u.username, u.display_name, u.avatar_path,
-                COALESCE(SUM(gt.diamond_value), 0) AS score
-         FROM gifts g
-         JOIN gift_types gt ON gt.id = g.gift_type_id
-         JOIN users u ON u.id = g.creator_id
-         WHERE g.created_at >= (NOW() - INTERVAL 7 DAY)
+                COALESCE(SUM(ct.amount), 0) AS score
+         FROM coin_transactions ct
+         JOIN users u ON u.id = ct.user_id
+         WHERE ct.currency = 'diamonds' AND ct.amount > 0
+           AND ct.reason IN ('gift_received','diamond_received','contest_reward')
+           AND ct.created_at >= (NOW() - INTERVAL 7 DAY)
          GROUP BY u.id ORDER BY score DESC LIMIT 50`
       );
     } else {

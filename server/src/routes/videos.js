@@ -1,6 +1,6 @@
 const express = require('express');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
-const { uploadVideo: uploadVideoMw } = require('../middleware/upload');
+const { uploadVideoWithMusic } = require('../middleware/upload');
 const {
   createVideo,
   getFeed,
@@ -17,7 +17,7 @@ const {
 
 const router = express.Router();
 
-router.post('/', requireAuth, uploadVideoMw.single('video'), createVideo);
+router.post('/', requireAuth, uploadVideoWithMusic, createVideo);
 router.get('/sounds', getSounds);
 router.get('/feed', optionalAuth, getFeed);
 router.get('/following', requireAuth, getFollowingFeed);

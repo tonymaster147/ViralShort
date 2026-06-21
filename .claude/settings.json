@@ -31,7 +31,11 @@
       "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; DELETE FROM users WHERE username='dancer'; DELETE FROM hashtags;\")",
       "Bash(C:/xampp/mysql/bin/mysql.exe -u root -e ' *)",
       "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; SELECT id, video_path FROM videos;\")",
-      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; DELETE FROM videos WHERE id IN \\(7,9\\); SELECT COUNT\\(*\\) AS remaining_videos FROM videos;\")"
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; DELETE FROM videos WHERE id IN \\(7,9\\); SELECT COUNT\\(*\\) AS remaining_videos FROM videos;\")",
+      "Bash(where ffmpeg *)",
+      "Read(//c//**)",
+      "Bash(node -e \"console.log\\('binary:', require\\('ffmpeg-static'\\)\\)\")",
+      "Bash(node -e \"const p=require\\('ffmpeg-static'\\); const fs=require\\('fs'\\); console.log\\('binary path:', p\\); console.log\\('exists:', fs.existsSync\\(p\\)\\);\")"
     ],
     "additionalDirectories": [
       "e:\\my projects\\viralshort\\server\\src",

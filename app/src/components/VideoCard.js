@@ -8,6 +8,7 @@ import { toggleLike, toggleFollow } from '../api/social';
 import { useAuth } from '../context/AuthContext';
 import { filterOverlay } from '../theme/filters';
 import GiftSheet from './GiftSheet';
+import DiamondSheet from './DiamondSheet';
 
 // One full-screen reel. `active` controls play/pause as the user swipes.
 export default function VideoCard({ video, active, height, onOpenComments, onUserPress }) {
@@ -25,6 +26,7 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
   const [commentCount, setCommentCount] = useState(video.commentCount || 0);
   const [following, setFollowing] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
+  const [diamondOpen, setDiamondOpen] = useState(false);
 
   const isOwn = user?.id === video.user.id;
 
@@ -98,6 +100,13 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
         </TouchableOpacity>
 
         {!isOwn && (
+          <TouchableOpacity style={styles.action} onPress={() => setDiamondOpen(true)}>
+            <Text style={styles.actionEmoji}>💎</Text>
+            <Text style={styles.actionLabel}>Send</Text>
+          </TouchableOpacity>
+        )}
+
+        {!isOwn && (
           <TouchableOpacity style={styles.action} onPress={() => setGiftOpen(true)}>
             <Text style={styles.actionEmoji}>🎁</Text>
             <Text style={styles.actionLabel}>Gift</Text>
@@ -141,6 +150,11 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
         visible={giftOpen}
         videoId={video.id}
         onClose={() => setGiftOpen(false)}
+      />
+      <DiamondSheet
+        visible={diamondOpen}
+        videoId={video.id}
+        onClose={() => setDiamondOpen(false)}
       />
     </View>
   );

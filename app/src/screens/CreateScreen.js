@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../components/ui';
@@ -17,14 +18,22 @@ export default function CreateScreen({ navigation }) {
   const [filter, setFilter] = useState('none');
   const [sounds, setSounds] = useState([]);
   const [soundId, setSoundId] = useState(null);
+  const [music, setMusic] = useState(null);          // device music file
+  const [muteOriginal, setMuteOriginal] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
   // Preview player — autoplays + loops once a video is picked.
+  // Muted in preview when the user chose to mute the original audio.
   const player = useVideoPlayer(asset?.uri || null, (p) => {
     p.loop = true;
-    p.muted = false;
+    p.muted = muteOriginal;
   });
+
+  // keep preview mute in sync with the toggle
+  useEffect(() => {
+    if (player) player.muted = muteOriginal;
+  }, [muteOriginal, player]);
 
   useEffect(() => {
     fetchSounds().then(setSounds).catch(() => {});
@@ -41,7 +50,9 @@ export default function CreateScreen({ navigation }) {
     const opts = {
       mediaTypes: ImagePicker.MediaTypeOptions?.Videos ?? 'videos',
       videoMaxDuration: 60,
-      quality: 0.7, // compress a bit so uploads succeed faster
+      quality: 1, // capture at full quality
+      videoQuality: ImagePicker.UIImagePickerControllerQualityType?.High, // iOS high
+      videoExportPreset: ImagePicker.VideoExportPreset?.HighestQuality, // iOS export
     };
     let result;
     if (source === 'camera') {
@@ -59,6 +70,17 @@ export default function CreateScreen({ navigation }) {
     try { player.replace(a.uri); } catch (_) {}
   };
 
+  const pickMusic = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: 'audio/*',
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled) return;
+    const file = result.assets[0];
+    setMusic({ uri: file.uri, name: file.name, mimeType: file.mimeType });
+    setMuteOriginal(true); // adding music defaults to muting the original
+  };
+
   const onUpload = async () => {
     if (!asset) return Alert.alert('Pick a video first');
     setUploading(true);
@@ -67,12 +89,16 @@ export default function CreateScreen({ navigation }) {
       await uploadVideo(asset, caption, setProgress, {
         filter: filter !== 'none' ? filter : null,
         soundId,
+        music,
+        muteOriginal,
       });
-      Alert.alert('Posted! 🎉', 'Your reel is live.');
+      Alert.alert('Posted! 🎉', music ? 'Your reel with custom music is live.' : 'Your reel is live.');
       setAsset(null);
       setCaption('');
       setFilter('none');
       setSoundId(null);
+      setMusic(null);
+      setMuteOriginal(false);
       navigation.navigate('Feed');
     } catch (err) {
       const msg = err.response?.data?.error
@@ -131,7 +157,7 @@ export default function CreateScreen({ navigation }) {
             ))}
           </ScrollView>
 
-          {/* Soundtracks */}
+          {/* Built-in soundtracks */}
           <Text style={styles.label}>🎵 Soundtrack</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
             <TouchableOpacity
@@ -150,6 +176,34 @@ export default function CreateScreen({ navigation }) {
               </TouchableOpacity>
             ))}
           </ScrollView>
+
+          {/* Custom music from device */}
+          <Text style={styles.label}>🎶 Custom music (from your device)</Text>
+          {music ? (
+            <View style={styles.musicRow}>
+              <Text style={styles.musicName} numberOfLines={1}>♫ {music.name}</Text>
+              <TouchableOpacity onPress={() => { setMusic(null); setMuteOriginal(false); }}>
+                <Text style={styles.musicRemove}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.musicPick} onPress={pickMusic}>
+              <Text style={styles.musicPickText}>＋ Add music from device</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Mute original toggle */}
+          <TouchableOpacity style={styles.toggleRow} onPress={() => setMuteOriginal((m) => !m)}>
+            <View style={[styles.checkbox, muteOriginal && styles.checkboxOn]}>
+              {muteOriginal && <Text style={styles.check}>✓</Text>}
+            </View>
+            <Text style={styles.toggleLabel}>Mute original video audio</Text>
+          </TouchableOpacity>
+          <Text style={styles.hint}>
+            {music
+              ? (muteOriginal ? 'Original sound off — only your music plays.' : 'Your music mixes over the original sound.')
+              : 'Tip: add music above, then choose to mute or mix the original.'}
+          </Text>
         </>
       )}
 
@@ -198,6 +252,17 @@ const styles = StyleSheet.create({
   swatch: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: colors.border },
   chipText: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
   chipTextActive: { color: colors.text },
+  musicPick: { backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.accent, borderStyle: 'dashed', paddingVertical: 14, alignItems: 'center', marginBottom: 12 },
+  musicPickText: { color: colors.accent, fontWeight: '700' },
+  musicRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.card, borderRadius: 12, padding: 14, marginBottom: 12 },
+  musicName: { color: colors.text, fontWeight: '700', flex: 1, marginRight: 10 },
+  musicRemove: { color: colors.danger, fontWeight: '800', fontSize: 16 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
+  checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  checkboxOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  check: { color: colors.text, fontWeight: '800' },
+  toggleLabel: { color: colors.text, fontWeight: '600' },
+  hint: { color: colors.textMuted, fontSize: 12, marginBottom: 16, marginTop: 2 },
   captionInput: {
     backgroundColor: colors.card, borderRadius: 12, padding: 14, color: colors.text,
     minHeight: 80, textAlignVertical: 'top', borderWidth: 1, borderColor: colors.border, marginBottom: 18,

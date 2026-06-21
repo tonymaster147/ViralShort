@@ -58,15 +58,50 @@ function baseSelect(viewerId) {
   `;
 }
 
-// POST /api/videos  (multipart: field "video", body: caption)
+// POST /api/videos
+// multipart fields: video (required), music (optional)
+// body: caption, filter, soundId, muteOriginal ("true"/"false")
 async function createVideo(req, res, next) {
+  const path = require('path');
+  const fs = require('fs');
   try {
-    if (!req.file) return res.status(400).json({ ok: false, error: 'No video file uploaded' });
+    // Support both upload.single (req.file) and upload.fields (req.files).
+    const videoFile = req.file || req.files?.video?.[0];
+    const musicFile = req.files?.music?.[0];
+    if (!videoFile) return res.status(400).json({ ok: false, error: 'No video file uploaded' });
+
     const caption = (req.body.caption || '').slice(0, 500);
     const filter = req.body.filter ? String(req.body.filter).slice(0, 30) : null;
     const soundId = req.body.soundId ? Number(req.body.soundId) : null;
-    const relPath = `videos/${req.file.filename}`;
+    const muteOriginal = String(req.body.muteOriginal) === 'true';
 
+    let finalFilename = videoFile.filename;
+
+    // If custom music was provided, merge it (mute or mix) into a new file.
+    if (musicFile) {
+      try {
+        const { mergeAudio } = require('../jobs/audioMerge');
+        const dir = path.dirname(videoFile.path);
+        const mergedName = `merged_${Date.now()}_${Math.round(Math.random() * 1e9)}.mp4`;
+        const outPath = path.join(dir, mergedName);
+        await mergeAudio({
+          videoPath: videoFile.path,
+          audioPath: musicFile.path,
+          muteOriginal,
+          outPath,
+        });
+        finalFilename = mergedName;
+        // cleanup originals
+        try { fs.unlinkSync(videoFile.path); } catch (_) {}
+      } catch (mergeErr) {
+        console.error('[merge] failed, using original video:', mergeErr.message);
+        // fall back to the original video if merge fails
+      } finally {
+        try { if (musicFile) fs.unlinkSync(musicFile.path); } catch (_) {}
+      }
+    }
+
+    const relPath = `videos/${finalFilename}`;
     const [result] = await pool.query(
       'INSERT INTO videos (user_id, video_path, caption, filter, sound_id) VALUES (?, ?, ?, ?, ?)',
       [req.userId, relPath, caption, filter, soundId]
@@ -75,10 +110,7 @@ async function createVideo(req, res, next) {
     await attachHashtags(result.insertId, caption);
 
     const params = req.userId ? [req.userId, result.insertId] : [result.insertId];
-    const [rows] = await pool.query(
-      `${baseSelect(req.userId)} WHERE v.id = ?`,
-      params
-    );
+    const [rows] = await pool.query(`${baseSelect(req.userId)} WHERE v.id = ?`, params);
     res.status(201).json({ ok: true, video: publicVideo(rows[0], req.userId) });
   } catch (err) {
     next(err);

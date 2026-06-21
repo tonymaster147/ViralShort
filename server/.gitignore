@@ -1,5 +1,6 @@
 node_modules/
 .env
+testtmp/
 uploads/videos/*
 uploads/thumbs/*
 uploads/avatars/*

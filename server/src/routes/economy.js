@@ -3,7 +3,7 @@ const { requireAuth, optionalAuth } = require('../middleware/auth');
 const {
   getWallet, getTransactions, dailyStatus, claimDaily,
 } = require('../controllers/walletController');
-const { getGiftTypes, sendGift } = require('../controllers/giftController');
+const { getGiftTypes, sendGift, sendDiamond } = require('../controllers/giftController');
 const {
   getLeaderboard, getCurrentContest, getPacks, buyPack,
 } = require('../controllers/economyController');
@@ -19,6 +19,7 @@ router.post('/wallet/daily/claim', requireAuth, claimDaily);
 // Gifts
 router.get('/gifts/types', getGiftTypes);
 router.post('/gifts/send', requireAuth, sendGift);
+router.post('/gifts/diamond', requireAuth, sendDiamond);
 
 // Leaderboard + contest
 router.get('/leaderboard', optionalAuth, getLeaderboard);
