@@ -1,8 +1,13 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, ScrollView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, Image, FlatList, TouchableOpacity, Dimensions } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui';
+import { fetchUserVideos } from '../api/videos';
 import { colors } from '../theme/colors';
+
+const { width } = Dimensions.get('window');
+const TILE = (width - 6) / 3;
 
 function Stat({ value, label }) {
   return (
@@ -14,13 +19,30 @@ function Stat({ value, label }) {
 }
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
+  const [videos, setVideos] = useState([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      let alive = true;
+      (async () => {
+        try {
+          const vids = await fetchUserVideos(user.id);
+          if (alive) setVideos(vids);
+          await refreshUser(); // refresh counts/coins
+        } catch (_) {}
+      })();
+      return () => { alive = false; };
+    }, [user?.id])
+  );
+
   if (!user) return null;
 
   const initial = (user.displayName || user.username || '?').charAt(0).toUpperCase();
 
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
+  const Header = (
+    <View style={{ padding: 20 }}>
       <View style={styles.header}>
         {user.avatar ? (
           <Image source={{ uri: user.avatar }} style={styles.avatar} />
@@ -54,7 +76,38 @@ export default function ProfileScreen({ navigation }) {
       <Button title="Edit Profile" onPress={() => navigation.navigate('EditProfile')} variant="outline" />
       <View style={{ height: 12 }} />
       <Button title="Log Out" onPress={logout} variant="card" />
-    </ScrollView>
+
+      <Text style={styles.gridTitle}>My Videos</Text>
+    </View>
+  );
+
+  const renderTile = ({ item }) => (
+    <View style={styles.tile}>
+      {item.thumbUrl ? (
+        <Image source={{ uri: item.thumbUrl }} style={styles.tileImg} />
+      ) : (
+        <View style={[styles.tileImg, styles.tileFallback]}>
+          <Text style={styles.tilePlay}>▶</Text>
+        </View>
+      )}
+      <Text style={styles.tileViews}>👁 {item.views}</Text>
+    </View>
+  );
+
+  return (
+    <FlatList
+      style={styles.container}
+      data={videos}
+      keyExtractor={(v) => String(v.id)}
+      numColumns={3}
+      renderItem={renderTile}
+      ListHeaderComponent={Header}
+      ListEmptyComponent={
+        <Text style={styles.empty}>No videos yet. Tap ➕ to post your first reel!</Text>
+      }
+      columnWrapperStyle={{ gap: 3, paddingHorizontal: 3 }}
+      contentContainerStyle={{ gap: 3, paddingBottom: 30 }}
+    />
   );
 }
 
@@ -72,6 +125,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card, borderRadius: 16, paddingVertical: 16, marginBottom: 14,
   },
   stat: { alignItems: 'center' },
+  gridTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 24, marginBottom: 6 },
+  tile: { width: TILE, height: TILE * 1.4, backgroundColor: colors.card, borderRadius: 6, overflow: 'hidden', justifyContent: 'flex-end' },
+  tileImg: { ...StyleSheet.absoluteFillObject, width: TILE, height: TILE * 1.4 },
+  tileFallback: { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  tilePlay: { color: colors.textMuted, fontSize: 28 },
+  tileViews: { color: colors.text, fontSize: 11, padding: 4, fontWeight: '600' },
+  empty: { color: colors.textMuted, textAlign: 'center', padding: 30 },
   statValue: { color: colors.text, fontSize: 20, fontWeight: '800' },
   statLabel: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
   wallet: {

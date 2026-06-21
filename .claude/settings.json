@@ -24,7 +24,9 @@
       "Bash(echo \"EXIT: $?\")",
       "Bash(node -e \"console.log\\(require\\('@react-navigation/core/package.json'\\).version\\)\")",
       "Bash(node -e \"require.resolve\\('@react-navigation/core'\\); console.log\\('core resolves OK'\\)\")",
-      "Bash(cd \"e:/my projects/viralshort/app\" && rm -rf node_modules/.cache .expo && timeout 180 npx expo export --platform android --output-dir /tmp/vs-test2 2>&1 | tail -6; echo \"EXIT: $?\"; rm -rf /tmp/vs-test2)"
+      "Bash(cd \"e:/my projects/viralshort/app\" && rm -rf node_modules/.cache .expo && timeout 180 npx expo export --platform android --output-dir /tmp/vs-test2 2>&1 | tail -6; echo \"EXIT: $?\"; rm -rf /tmp/vs-test2)",
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"USE viralshort; DELETE FROM users WHERE username='vid';\")",
+      "Bash(rm -f \"e:/my projects/viralshort/server/uploads/videos/\"*.mp4)"
     ],
     "additionalDirectories": [
       "e:\\my projects\\viralshort\\server\\src",

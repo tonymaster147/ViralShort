@@ -25,7 +25,7 @@ app.get('/api/health', (req, res) => {
 // --- Routes ---
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
-// app.use('/api/videos', require('./routes/videos'));  // Phase 2
+app.use('/api/videos', require('./routes/videos'));
 
 // 404 handler
 app.use((req, res) => {

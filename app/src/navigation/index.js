@@ -12,6 +12,8 @@ import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
+import FeedScreen from '../screens/FeedScreen';
+import CreateScreen from '../screens/CreateScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 
 const navTheme = {
@@ -54,9 +56,7 @@ function ProfileNavigator() {
 }
 
 // Placeholder tab screens (real ones land in later phases)
-const FeedScreen = () => <PlaceholderScreen title="Feed" emoji="🎬" phase="Phase 2" />;
 const SearchScreen = () => <PlaceholderScreen title="Discover" emoji="🔍" phase="Phase 4" />;
-const CreateScreen = () => <PlaceholderScreen title="Create" emoji="➕" phase="Phase 2" />;
 const InboxScreen = () => <PlaceholderScreen title="Inbox" emoji="💬" phase="Phase 5" />;
 
 function tabIcon(label) {
