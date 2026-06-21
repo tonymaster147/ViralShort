@@ -114,6 +114,11 @@ async function createVideo(req, res, next) {
     const originalVolume = muteOriginal ? 0 : clampVol(req.body.originalVolume, 1);
     const musicVolume = clampVol(req.body.musicVolume, 1);
     const voiceVolume = clampVol(req.body.voiceVolume, 1);
+    // Editor overlay (text/stickers/drawing) — JSON string of normalized layers.
+    let overlay = null;
+    if (req.body.overlay) {
+      try { overlay = JSON.parse(req.body.overlay); } catch (_) { overlay = null; }
+    }
     // Publish options
     const coverTime = req.body.coverTime != null ? Math.max(0, Number(req.body.coverTime)) : 0;
     const allowComments = req.body.allowComments != null ? (String(req.body.allowComments) === 'true' ? 1 : 0) : 1;
@@ -194,7 +199,7 @@ async function createVideo(req, res, next) {
     res.status(201).json({ ok: true, video: publicVideo(rows[0], req.userId) });
 
     // --- Background processing --- (final status: 'scheduled' if scheduled, else 'ready')
-    processInBackground(req.app, videoId, finalPath, coverTime, req.userId, !!scheduledAt).catch((e) =>
+    processInBackground(req.app, videoId, finalPath, coverTime, req.userId, !!scheduledAt, overlay).catch((e) =>
       console.error('[processor] background error:', e.message)
     );
   } catch (err) {
@@ -218,11 +223,11 @@ async function attachMentions(app, videoId, caption, explicit, actorId) {
   }
 }
 
-// Compress + cover + thumbnail + probe, then mark the video ready/scheduled and notify.
-async function processInBackground(app, videoId, inputPath, coverTime, ownerId, scheduled = false) {
+// Compress + overlay-bake + cover + thumbnail + probe, then mark ready/scheduled and notify.
+async function processInBackground(app, videoId, inputPath, coverTime, ownerId, scheduled = false, overlay = null) {
   try {
     const { processVideo } = require('../jobs/videoProcessor');
-    const out = await processVideo(inputPath, { coverTime });
+    const out = await processVideo(inputPath, { coverTime, overlay });
     const finalStatus = scheduled ? 'scheduled' : 'ready';
     await pool.query(
       `UPDATE videos SET video_path=?, thumb_path=?, cover_path=?, duration=?, width=?, height=?, file_size=?, status=?

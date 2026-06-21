@@ -45,6 +45,7 @@ export default function CreateScreen({ navigation, route }) {
   const [allowDownload, setAllowDownload] = useState(false);
   const [draftId, setDraftId] = useState(null);
   const [clips, setClips] = useState(null);     // multi-clip uris from the camera
+  const [overlay, setOverlay] = useState(null); // editor overlay (text/stickers/draw)
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -78,6 +79,11 @@ export default function CreateScreen({ navigation, route }) {
       try { player.replace(incoming[0]); } catch (_) {}
     }
   }, [route?.params?.clips]);
+
+  // Overlay returned from the editor.
+  useEffect(() => {
+    if (route?.params?.overlay) setOverlay(route.params.overlay);
+  }, [route?.params?.overlay]);
 
   // Resume a draft if passed in.
   useEffect(() => {
@@ -204,6 +210,7 @@ export default function CreateScreen({ navigation, route }) {
     try {
       await uploadVideo(asset, caption, setProgress, {
         clips: clips && clips.length ? clips : null,
+        overlay: overlay || null,
         filter: filter !== 'none' ? filter : null,
         soundId: !music && selectedSound ? selectedSound.id : null,
         music,
@@ -243,7 +250,7 @@ export default function CreateScreen({ navigation, route }) {
     setSelectedSound(null); setMusic(null); setVoiceover(null);
     setTrim({ start: 0, duration: null });
     setOriginalVolume(1); setMusicVolume(1); setVoiceVolume(1);
-    setCoverTime(0); setDraftId(null); setVideoDuration(null); setClips(null);
+    setCoverTime(0); setDraftId(null); setVideoDuration(null); setClips(null); setOverlay(null);
     setLocation(null); setScheduledAt(null);
   };
 
@@ -282,6 +289,10 @@ export default function CreateScreen({ navigation, route }) {
           <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: filterOverlay(filter) }]} />
           <TouchableOpacity style={styles.changeBtn} onPress={() => setAsset(null)}>
             <Text style={styles.changeText}>✕ Remove</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('Editor', { videoUri: (clips && clips[0]) || asset.uri })}>
+            <Ionicons name="sparkles" size={14} color="#fff" />
+            <Text style={styles.editText}>{overlay ? 'Edit ✓' : 'Edit'}</Text>
           </TouchableOpacity>
           <View style={styles.soundTag}>
             <Ionicons name="musical-notes" size={12} color={colors.text} />
@@ -456,7 +467,9 @@ const makeStyles = (colors) => StyleSheet.create({
   previewWrap: { height: 360, borderRadius: 16, overflow: 'hidden', marginBottom: 16, backgroundColor: '#000' },
   preview: { flex: 1 },
   changeBtn: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
-  changeText: { color: colors.text, fontWeight: '700' },
+  changeText: { color: '#fff', fontWeight: '700' },
+  editBtn: { position: 'absolute', top: 10, left: 10, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.primary, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
+  editText: { color: '#fff', fontWeight: '800', fontSize: 12 },
   soundTag: { position: 'absolute', left: 10, bottom: 10, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, maxWidth: '70%' },
   soundTagText: { color: colors.text, fontWeight: '600', fontSize: 12 },
   label: { color: colors.textMuted, marginBottom: 8, fontWeight: '700' },

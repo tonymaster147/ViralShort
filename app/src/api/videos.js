@@ -85,6 +85,7 @@ export async function uploadVideo(videoAsset, caption, onProgress, opts = {}) {
   if (opts.locationLng != null) form.append('locationLng', String(opts.locationLng));
   if (opts.scheduledAt) form.append('scheduledAt', opts.scheduledAt);
   if (opts.mentions) form.append('mentions', opts.mentions);
+  if (opts.overlay) form.append('overlay', typeof opts.overlay === 'string' ? opts.overlay : JSON.stringify(opts.overlay));
   // Multi-clip (camera) takes precedence; else a single gallery/recorded video.
   if (opts.clips?.length) {
     opts.clips.forEach((uri, i) => {

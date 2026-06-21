@@ -88,7 +88,7 @@ function extractThumb(inPath, atSeconds = 1) {
 //   inputPath  - absolute path to the source video
 //   coverTime  - seconds to grab the cover/thumb frame from (default 0/1)
 // Returns { videoRel, thumbRel, coverRel, duration, width, height, fileSize }.
-async function processVideo(inputPath, { coverTime = 0 } = {}) {
+async function processVideo(inputPath, { coverTime = 0, overlay = null } = {}) {
   const meta = await probe(inputPath);
   const safeCover = Math.min(coverTime || 0, meta.duration ? meta.duration - 0.1 : coverTime || 0);
 
@@ -101,6 +101,25 @@ async function processVideo(inputPath, { coverTime = 0 } = {}) {
     videoRel = `videos/${compressed.outName}`;
     // remove the pre-compression file
     try { fs.unlinkSync(inputPath); } catch (_) {}
+  }
+
+  // Bake editor overlay (text/stickers/drawing) at the final resolution.
+  if (overlay && overlay.layers && overlay.layers.length) {
+    try {
+      const fmeta = await probe(finalPath);
+      const { renderOverlay } = require('./overlayRenderer');
+      const png = renderOverlay(overlay, fmeta.width, fmeta.height);
+      if (png) {
+        const { bakeOverlay } = require('./overlayBake');
+        const baked = await bakeOverlay(finalPath, png);
+        try { fs.unlinkSync(finalPath); } catch (_) {}
+        try { fs.unlinkSync(png); } catch (_) {}
+        finalPath = baked.outPath;
+        videoRel = `videos/${baked.outName}`;
+      }
+    } catch (e) {
+      console.error('[overlay] bake failed, keeping video without overlay:', e.message);
+    }
   }
 
   const [coverRel, thumbRel, meta2] = await Promise.all([
