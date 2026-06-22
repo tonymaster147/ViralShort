@@ -46,7 +46,8 @@
       "Bash(npx expo *)",
       "Bash(echo \"EXIT $?\")",
       "Bash(git commit -q -m 'Razorpay diamond purchases + remove coins \\(diamonds-only economy\\) *)",
-      "Bash(timeout 90 git push)"
+      "Bash(timeout 90 git push)",
+      "Bash(eas build *)"
     ],
     "additionalDirectories": [
       "\\tmp"

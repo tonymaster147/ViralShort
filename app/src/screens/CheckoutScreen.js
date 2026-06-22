@@ -61,7 +61,7 @@ export default function CheckoutScreen({ route, navigation }) {
     }
   };
 
-  const uri = checkoutUrl({ orderId, keyId, amount, name: 'ViralShort', desc: `${packName} · ${diamonds} 💎` });
+  const uri = checkoutUrl({ orderId, keyId, amount, name: 'ViralShort', desc: `${packName} - ${diamonds} diamonds` });
 
   // Running on an older dev build without the WebView native module.
   if (!WebView) {

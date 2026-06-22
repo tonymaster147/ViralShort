@@ -103,7 +103,17 @@ function checkoutPage(req, res) {
   ));
   // Pass to JS as JSON strings (safe inside <script>).
   const j = (s) => JSON.stringify(String(s == null ? '' : s));
-  const { oid, key, amt, name = 'ViralShort', desc = 'Buy diamonds' } = req.query;
+  // Razorpay's name/description reject emoji & many symbols ("description
+  // contains invalid characters"). Keep only a safe ASCII subset.
+  const ascii = (s, fallback) => {
+    const out = String(s == null ? '' : s).replace(/[^a-zA-Z0-9 _.,:()\-]/g, '').trim();
+    return out || fallback;
+  };
+  const oid = req.query.oid;
+  const key = req.query.key;
+  const amt = req.query.amt;
+  const name = ascii(req.query.name, 'ViralShort');
+  const desc = ascii(req.query.desc, 'Buy diamonds');
 
   res.type('html').send(`<!doctype html>
 <html>
