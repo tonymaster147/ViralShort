@@ -98,19 +98,30 @@ export default function EditorScreen({ navigation, route }) {
     setStickerOpen(false);
   };
 
-  // Drawing capture (only active in draw mode)
+  // Drawing capture (only active in draw mode).
+  // IMPORTANT: read the touch point SYNCHRONOUSLY — the synthetic event is
+  // recycled before the setState updater runs (e.nativeEvent becomes null).
   const drawPan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (e) => setCurrent({ color: drawColorRef.current, width: drawWidthRef.current, points: [pt(e)] }),
-      onPanResponderMove: (e) => setCurrent((c) => c ? { ...c, points: [...c.points, pt(e)] } : c),
+      onPanResponderGrant: (e) => {
+        const p = pt(e);
+        setCurrent({ color: drawColorRef.current, width: drawWidthRef.current, points: [p] });
+      },
+      onPanResponderMove: (e) => {
+        const p = pt(e);
+        setCurrent((c) => (c ? { ...c, points: [...c.points, p] } : c));
+      },
       onPanResponderRelease: () => {
         setCurrent((c) => { if (c && c.points.length > 1) setStrokes((s) => [...s, c]); return null; });
       },
     })
   ).current;
-  function pt(e) { return { x: e.nativeEvent.locationX || 0, y: e.nativeEvent.locationY || 0 }; }
+  function pt(e) {
+    const ne = e?.nativeEvent || {};
+    return { x: ne.locationX ?? 0, y: ne.locationY ?? 0 };
+  }
 
   const undo = () => {
     if (mode === 'draw' && strokes.length) { setStrokes((s) => s.slice(0, -1)); return; }
@@ -132,7 +143,7 @@ export default function EditorScreen({ navigation, route }) {
     for (const s of strokes) {
       out.push({ type: 'draw', color: s.color, width: s.width / W, points: s.points.map((p) => ({ x: p.x / W, y: p.y / H })) });
     }
-    navigation.navigate({ name: 'CreateMain', params: { overlay: { layers: out } }, merge: true });
+    navigation.navigate('CreateMain', { overlay: { layers: out } });
   };
 
   return (

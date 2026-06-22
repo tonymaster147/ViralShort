@@ -103,7 +103,7 @@ export default function ClipEditorScreen({ navigation, route }) {
       fit: c.fit,
       duration: c.type === 'image' ? c.imgDur : undefined,
     }));
-    navigation.navigate({ name: 'CreateMain', params: { clipItems }, merge: true });
+    navigation.navigate('CreateMain', { clipItems });
   };
 
   const totalSec = clips.reduce((s, c) => {
