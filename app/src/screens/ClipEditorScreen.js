@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { useTheme } from '../theme/ThemeContext';
@@ -31,7 +32,30 @@ export default function ClipEditorScreen({ navigation, route }) {
   const [tool, setTool] = useState(null); // trim | speed | null
 
   const current = clips[sel];
-  const player = useVideoPlayer(current?.type === 'video' ? current.uri : null, (p) => { p.loop = true; p.muted = false; p.play(); });
+  const player = useVideoPlayer(current?.type === 'video' ? current.uri : null, (p) => { p.loop = true; p.muted = false; });
+
+  // Load the selected clip into the preview when it changes.
+  useEffect(() => {
+    if (current?.type === 'video' && current.uri) {
+      try { player.replace(current.uri); player.play(); } catch (_) {}
+    } else {
+      try { player.pause(); } catch (_) {}
+    }
+  }, [current?.uri]);
+
+  // Live preview: reflect speed on the player.
+  useEffect(() => {
+    if (current?.type === 'video') {
+      try { player.playbackRate = current.speed || 1; } catch (_) {}
+    }
+  }, [current?.speed, current?.uri]);
+
+  // Stop audio/video when leaving the screen.
+  useFocusEffect(
+    useCallback(() => {
+      return () => { try { player.pause(); } catch (_) {} };
+    }, [player])
+  );
 
   const update = (patch) => setClips((cs) => cs.map((c, i) => i === sel ? { ...c, ...patch } : c));
 
@@ -96,13 +120,20 @@ export default function ClipEditorScreen({ navigation, route }) {
         <TouchableOpacity onPress={onNext} style={styles.nextBtn}><Text style={styles.nextText}>Next ({clips.length})</Text></TouchableOpacity>
       </View>
 
-      {/* Preview */}
+      {/* Preview — reflects rotation + fill/fit live */}
       <View style={styles.preview}>
-        {current?.type === 'video' ? (
-          <VideoView style={StyleSheet.absoluteFill} player={player} contentFit="contain" nativeControls={false} />
-        ) : (
-          <Image source={{ uri: current?.uri }} style={StyleSheet.absoluteFill} resizeMode="contain" />
-        )}
+        <View style={[StyleSheet.absoluteFill, { transform: [{ rotate: `${current?.rotate || 0}deg` }] }]}>
+          {current?.type === 'video' ? (
+            <VideoView
+              style={StyleSheet.absoluteFill}
+              player={player}
+              contentFit={current?.fit === 'fit' ? 'contain' : 'cover'}
+              nativeControls={false}
+            />
+          ) : (
+            <Image source={{ uri: current?.uri }} style={StyleSheet.absoluteFill} resizeMode={current?.fit === 'fit' ? 'contain' : 'cover'} />
+          )}
+        </View>
         {current?.rotate ? <View style={styles.rotateTag}><Text style={styles.tagText}>↻ {current.rotate}°</Text></View> : null}
         {current?.speed !== 1 ? <View style={styles.speedTag}><Text style={styles.tagText}>{current.speed}×</Text></View> : null}
       </View>

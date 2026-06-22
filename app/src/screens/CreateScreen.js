@@ -68,8 +68,6 @@ export default function CreateScreen({ navigation, route }) {
     p.muted = originalVolume === 0;
   });
 
-  useEffect(() => { if (player) player.muted = originalVolume === 0; }, [originalVolume, player]);
-
   // Clips recorded in the custom camera.
   useEffect(() => {
     const incoming = route?.params?.clips;
@@ -129,10 +127,20 @@ export default function CreateScreen({ navigation, route }) {
     }
   }, [asset]);
 
+  // Scrub to preview the cover frame; resume playback when the finger lifts.
   const onScrubCover = (t) => {
     setCoverTime(t);
     try { player.pause(); player.currentTime = t; } catch (_) {}
   };
+  const onScrubCoverDone = () => {
+    try { player.play(); } catch (_) {}
+  };
+
+  // Live-preview the original-audio volume (music/voice mix happens server-side).
+  useEffect(() => {
+    if (!player) return;
+    try { player.volume = originalVolume; player.muted = originalVolume === 0; } catch (_) {}
+  }, [originalVolume, player]);
 
   const addLocation = async () => {
     setLocating(true);
@@ -349,9 +357,10 @@ export default function CreateScreen({ navigation, route }) {
           <Slider
             minimumValue={0} maximumValue={Math.max(0.1, videoDuration)} value={coverTime}
             onValueChange={onScrubCover}
+            onSlidingComplete={onScrubCoverDone}
             minimumTrackTintColor={colors.primary} maximumTrackTintColor={colors.border} thumbTintColor={colors.primary}
           />
-          <Text style={styles.hint}>Drag to choose the cover frame ({coverTime.toFixed(1)}s).</Text>
+          <Text style={styles.hint}>Drag to choose the cover frame ({coverTime.toFixed(1)}s) — playback resumes when you let go.</Text>
 
           <Text style={[styles.label, { marginTop: 10 }]}>Settings</Text>
           {[

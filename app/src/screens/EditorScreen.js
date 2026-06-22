@@ -1,10 +1,11 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, PanResponder, Dimensions,
 } from 'react-native';
 import Svg, { Polyline } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 
@@ -57,6 +58,16 @@ export default function EditorScreen({ navigation, route }) {
   const [mode, setMode] = useState('none');          // none | draw
   const [drawColor, setDrawColor] = useState('#25F4EE');
   const [drawWidth, setDrawWidth] = useState(6);
+  // Refs so the PanResponder (created once) reads the latest color/width.
+  const drawColorRef = useRef(drawColor);
+  const drawWidthRef = useRef(drawWidth);
+  useEffect(() => { drawColorRef.current = drawColor; }, [drawColor]);
+  useEffect(() => { drawWidthRef.current = drawWidth; }, [drawWidth]);
+
+  // Stop the preview when leaving the editor.
+  useFocusEffect(
+    useCallback(() => () => { try { player.pause(); } catch (_) {} }, [player])
+  );
 
   // Text editor modal
   const [textModal, setTextModal] = useState(false);
@@ -92,14 +103,14 @@ export default function EditorScreen({ navigation, route }) {
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (e) => setCurrent({ color: drawColor, width: drawWidth, points: [pt(e)] }),
+      onPanResponderGrant: (e) => setCurrent({ color: drawColorRef.current, width: drawWidthRef.current, points: [pt(e)] }),
       onPanResponderMove: (e) => setCurrent((c) => c ? { ...c, points: [...c.points, pt(e)] } : c),
       onPanResponderRelease: () => {
         setCurrent((c) => { if (c && c.points.length > 1) setStrokes((s) => [...s, c]); return null; });
       },
     })
   ).current;
-  function pt(e) { return { x: e.nativeEvent.locationX, y: e.nativeEvent.locationY }; }
+  function pt(e) { return { x: e.nativeEvent.locationX || 0, y: e.nativeEvent.locationY || 0 }; }
 
   const undo = () => {
     if (mode === 'draw' && strokes.length) { setStrokes((s) => s.slice(0, -1)); return; }
@@ -132,15 +143,17 @@ export default function EditorScreen({ navigation, route }) {
       >
         <VideoView style={StyleSheet.absoluteFill} player={player} contentFit="cover" nativeControls={false} />
 
-        {/* committed strokes + current stroke */}
-        <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-          {strokes.map((s, i) => (
-            <Polyline key={i} points={s.points.map((p) => `${p.x},${p.y}`).join(' ')} fill="none" stroke={s.color} strokeWidth={s.width} strokeLinejoin="round" strokeLinecap="round" />
-          ))}
-          {current && (
-            <Polyline points={current.points.map((p) => `${p.x},${p.y}`).join(' ')} fill="none" stroke={current.color} strokeWidth={current.width} strokeLinejoin="round" strokeLinecap="round" />
-          )}
-        </Svg>
+        {/* committed strokes + current stroke (pointerEvents on the wrapper, not Svg) */}
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
+            {strokes.filter((s) => s.points && s.points.length >= 2).map((s, i) => (
+              <Polyline key={i} points={s.points.map((p) => `${p.x},${p.y}`).join(' ')} fill="none" stroke={s.color} strokeWidth={s.width} strokeLinejoin="round" strokeLinecap="round" />
+            ))}
+            {current && current.points.length >= 2 && (
+              <Polyline points={current.points.map((p) => `${p.x},${p.y}`).join(' ')} fill="none" stroke={current.color} strokeWidth={current.width} strokeLinejoin="round" strokeLinecap="round" />
+            )}
+          </Svg>
+        </View>
 
         {/* text + sticker layers */}
         {layers.map((l) => <DraggableLayer key={l.id} layer={l} onMove={onLayerMove} />)}

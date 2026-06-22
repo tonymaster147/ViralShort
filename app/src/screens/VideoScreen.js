@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, ActivityIndicator, Dimensions } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import VideoCard from '../components/VideoCard';
 import CommentsSheet from '../components/CommentsSheet';
@@ -16,6 +17,7 @@ export default function VideoScreen({ route, navigation }) {
   const [loading, setLoading] = useState(!passed);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const commentSetter = useRef(null);
+  const isFocused = useIsFocused(); // pause playback when the screen is left
 
   useEffect(() => {
     if (passed) return;
@@ -36,7 +38,7 @@ export default function VideoScreen({ route, navigation }) {
     <View style={styles.container}>
       <VideoCard
         video={video}
-        active={!commentsOpen}
+        active={isFocused && !commentsOpen}
         height={SCREEN_H}
         onOpenComments={(v, setCount) => { commentSetter.current = setCount; setCommentsOpen(true); }}
         onUserPress={(userId) => navigation.navigate('UserProfile', { userId })}
