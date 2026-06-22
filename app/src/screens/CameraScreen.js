@@ -129,6 +129,8 @@ export default function CameraScreen({ navigation }) {
         mode="video"
         videoBitrate={12000000}
         autofocus="on"
+        ratio="16:9"
+        videoStabilizationMode="auto"
       />
 
       {/* Top controls */}

@@ -15,7 +15,10 @@
       "Bash(npx expo-doctor *)",
       "Bash(node -e \"['expo-asset','expo-font','expo-constants'].forEach\\(m=>{try{console.log\\(m, require\\(m+'/package.json'\\).version\\)}catch\\(e\\){console.log\\(m,'?'\\)}}\\)\")",
       "Bash(git commit -q -m 'Stronger mic denoise: RNNoise \\(arnndn\\) + reset audio mode after voice-over *)",
-      "Bash(timeout 60 git push)"
+      "Bash(timeout 60 git push)",
+      "WebSearch",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(npm view *)"
     ],
     "additionalDirectories": [
       "\\tmp"
