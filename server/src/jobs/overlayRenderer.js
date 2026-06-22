@@ -1,9 +1,30 @@
 const path = require('path');
 const fs = require('fs');
-const { createCanvas } = require('@napi-rs/canvas');
+const { createCanvas, GlobalFonts } = require('@napi-rs/canvas');
 
 const OVERLAY_DIR = path.join(__dirname, '..', '..', 'uploads', 'overlays');
 fs.mkdirSync(OVERLAY_DIR, { recursive: true });
+
+// Register a colour-emoji font so emoji stickers don't bake as black "tofu" boxes.
+// Tries a bundled font first, then the OS emoji font (Windows/macOS/Linux).
+let EMOJI_FAMILY = 'sans-serif';
+const EMOJI_FONT_CANDIDATES = [
+  path.join(__dirname, '..', '..', 'assets', 'fonts', 'emoji.ttf'),
+  'C:/Windows/Fonts/seguiemj.ttf',
+  '/System/Library/Fonts/Apple Color Emoji.ttc',
+  '/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf',
+  '/usr/share/fonts/noto/NotoColorEmoji.ttf',
+];
+for (const f of EMOJI_FONT_CANDIDATES) {
+  try {
+    if (fs.existsSync(f) && GlobalFonts.registerFromPath(f, 'EmojiFont')) {
+      EMOJI_FAMILY = 'EmojiFont';
+      console.log('[overlay] emoji font registered:', f);
+      break;
+    }
+  } catch (_) {}
+}
+if (EMOJI_FAMILY === 'sans-serif') console.warn('[overlay] no colour-emoji font found — stickers may render as boxes');
 
 // Render an editor overlay description into a transparent PNG sized to the video.
 //
@@ -72,7 +93,7 @@ function renderOverlay(overlay, videoWidth, videoHeight) {
         ctx.save();
         ctx.translate(layer.x * W, layer.y * H);
         if (layer.rotation) ctx.rotate((layer.rotation * Math.PI) / 180);
-        ctx.font = `${px}px sans-serif`;
+        ctx.font = `${px}px ${EMOJI_FAMILY}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(String(layer.emoji || '⭐'), 0, 0);

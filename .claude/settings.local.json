@@ -21,7 +21,14 @@
       "Bash(npm view *)",
       "Bash(grep -rn '\\\\$' src/screens/BuyCoinsScreen.js src/screens/WalletScreen.js)",
       "Bash(grep -v 'priceLabel\\\\|`\\\\${')",
-      "Bash(grep '\\\\$[0-9]\\\\|USD\\\\|dollar')"
+      "Bash(grep '\\\\$[0-9]\\\\|USD\\\\|dollar')",
+      "Bash(ls \"C:/Windows/Fonts/seguiemj.ttf\")",
+      "Bash(rm -f emoji_test.png)",
+      "Bash(sed -i 's#if \\(first.type === '\"'\"'video'\"'\"'\\) { try { player.replace\\(first.uri\\); } catch \\(_\\) {} }#if \\(first.type === '\"'\"'video'\"'\"'\\) { player.replaceAsync\\(first.uri\\).catch\\(\\(\\) => {}\\); }#' src/screens/CreateScreen.js)",
+      "Bash(sed -i 's#try { player.replace\\(incoming\\\\[0\\\\]\\); } catch \\(_\\) {}#player.replaceAsync\\(incoming[0]\\).catch\\(\\(\\) => {}\\);#' src/screens/CreateScreen.js)",
+      "Bash(sed -i 's#try { player.replace\\(draft.videoUri\\); } catch \\(_\\) {}#player.replaceAsync\\(draft.videoUri\\).catch\\(\\(\\) => {}\\);#' src/screens/CreateScreen.js)",
+      "Bash(sed -i 's#try { player.replace\\(a.uri\\); } catch \\(_\\) {}#player.replaceAsync\\(a.uri\\).catch\\(\\(\\) => {}\\);#' src/screens/CreateScreen.js)",
+      "Bash(sed -i 's#try { player.replace\\(current.uri\\); player.play\\(\\); } catch \\(_\\) {}#player.replaceAsync\\(current.uri\\).then\\(\\(\\) => { try { player.play\\(\\); } catch \\(_\\) {} }\\).catch\\(\\(\\) => {}\\);#' src/screens/ClipEditorScreen.js)"
     ],
     "additionalDirectories": [
       "\\tmp"

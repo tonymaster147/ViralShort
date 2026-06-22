@@ -38,7 +38,7 @@ export default function ClipEditorScreen({ navigation, route }) {
   // Load the selected clip into the preview when it changes.
   useEffect(() => {
     if (current?.type === 'video' && current.uri) {
-      try { player.replace(current.uri); player.play(); } catch (_) {}
+      player.replaceAsync(current.uri).then(() => { try { player.play(); } catch (_) {} }).catch(() => {});
     } else {
       try { player.pause(); } catch (_) {}
     }

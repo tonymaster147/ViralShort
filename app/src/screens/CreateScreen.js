@@ -84,7 +84,7 @@ export default function CreateScreen({ navigation, route }) {
         setClips(null);
         const first = items[0];
         setAsset({ uri: first.uri });
-        if (first.type === 'video') { try { player.replace(first.uri); } catch (_) {} }
+        if (first.type === 'video') { player.replaceAsync(first.uri).catch(() => {}); }
       }
       if (asset || items?.length) { try { player.play(); } catch (_) {} }
       return () => { try { player.pause(); } catch (_) {} };
@@ -106,7 +106,7 @@ export default function CreateScreen({ navigation, route }) {
     if (incoming?.length) {
       setClips(incoming);
       setAsset({ uri: incoming[0] }); // preview the first clip
-      try { player.replace(incoming[0]); } catch (_) {}
+      player.replaceAsync(incoming[0]).catch(() => {});
     }
   }, [route?.params?.clips]);
 
@@ -124,7 +124,7 @@ export default function CreateScreen({ navigation, route }) {
       setAllowComments(s.allowComments !== false);
       setAllowRemix(s.allowRemix !== false);
       setAllowDownload(!!s.allowDownload);
-      try { player.replace(draft.videoUri); } catch (_) {}
+      player.replaceAsync(draft.videoUri).catch(() => {});
     }
   }, [route?.params?.draft]);
 
@@ -224,7 +224,7 @@ export default function CreateScreen({ navigation, route }) {
     const a = result.assets[0];
     setClips(null); setClipItems(null);
     setAsset(a);
-    try { player.replace(a.uri); } catch (_) {}
+    player.replaceAsync(a.uri).catch(() => {});
   };
 
   // Gallery: multi-select videos + images, then open the clip editor.
