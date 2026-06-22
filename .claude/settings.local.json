@@ -28,7 +28,23 @@
       "Bash(sed -i 's#try { player.replace\\(incoming\\\\[0\\\\]\\); } catch \\(_\\) {}#player.replaceAsync\\(incoming[0]\\).catch\\(\\(\\) => {}\\);#' src/screens/CreateScreen.js)",
       "Bash(sed -i 's#try { player.replace\\(draft.videoUri\\); } catch \\(_\\) {}#player.replaceAsync\\(draft.videoUri\\).catch\\(\\(\\) => {}\\);#' src/screens/CreateScreen.js)",
       "Bash(sed -i 's#try { player.replace\\(a.uri\\); } catch \\(_\\) {}#player.replaceAsync\\(a.uri\\).catch\\(\\(\\) => {}\\);#' src/screens/CreateScreen.js)",
-      "Bash(sed -i 's#try { player.replace\\(current.uri\\); player.play\\(\\); } catch \\(_\\) {}#player.replaceAsync\\(current.uri\\).then\\(\\(\\) => { try { player.play\\(\\); } catch \\(_\\) {} }\\).catch\\(\\(\\) => {}\\);#' src/screens/ClipEditorScreen.js)"
+      "Bash(sed -i 's#try { player.replace\\(current.uri\\); player.play\\(\\); } catch \\(_\\) {}#player.replaceAsync\\(current.uri\\).then\\(\\(\\) => { try { player.play\\(\\); } catch \\(_\\) {} }\\).catch\\(\\(\\) => {}\\);#' src/screens/ClipEditorScreen.js)",
+      "WebFetch(domain:www.banuba.com)",
+      "WebFetch(domain:en.meishesdk.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api *)",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/Banuba/ve-sdk-react-native/main/package.json\")",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/Banuba/ve-sdk-react-native/main/example/package.json\")",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/Banuba/ve-sdk-react-native/main/README.md\")",
+      "Bash(node -e \"try{console.log\\(require\\('react-native-webview/package.json'\\).version\\)}catch\\(e\\){console.log\\('NOT installed'\\)}\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); ['expo-web-browser','react-native-webview','expo-linking','react-native-razorpay'].forEach\\(d=>console.log\\(d, \\(p.dependencies||{}\\)[d]||'NO'\\)\\)\")",
+      "Bash(node -e \"const a=require\\('./app.json'\\); console.log\\('scheme:', a.expo&&a.expo.scheme\\)\")",
+      "Bash(grep -i scheme app.json app.config.js)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).scripts,null,2\\)\\)\")",
+      "Bash(node -e \"console.log\\('webview:', require\\('react-native-webview/package.json'\\).version\\)\")",
+      "Bash(powershell -Command \"Get-Process node -ErrorAction SilentlyContinue | Select-Object Id,StartTime | Format-Table -AutoSize\")",
+      "Bash(npx expo *)",
+      "Bash(echo \"EXIT $?\")"
     ],
     "additionalDirectories": [
       "\\tmp"

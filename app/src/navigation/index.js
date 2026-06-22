@@ -23,7 +23,8 @@ import InboxScreen from '../screens/InboxScreen';
 import ChatScreen from '../screens/ChatScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import WalletScreen from '../screens/WalletScreen';
-import BuyCoinsScreen from '../screens/BuyCoinsScreen';
+import BuyDiamondsScreen from '../screens/BuyDiamondsScreen';
+import CheckoutScreen from '../screens/CheckoutScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 import ContestScreen from '../screens/ContestScreen';
 import DraftsScreen from '../screens/DraftsScreen';
@@ -60,7 +61,8 @@ function ProfileNavigator() {
       <ProfileStack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
       <ProfileStack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
       <ProfileStack.Screen name="Wallet" component={WalletScreen} options={{ title: 'Wallet' }} />
-      <ProfileStack.Screen name="BuyCoins" component={BuyCoinsScreen} options={{ title: 'Buy Coins' }} />
+      <ProfileStack.Screen name="BuyDiamonds" component={BuyDiamondsScreen} options={{ title: 'Buy Diamonds' }} />
+      <ProfileStack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: false, presentation: 'modal' }} />
       <ProfileStack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ title: 'Leaderboard' }} />
       <ProfileStack.Screen name="Contest" component={ContestScreen} options={{ title: 'Weekly Contest' }} />
     </ProfileStack.Navigator>

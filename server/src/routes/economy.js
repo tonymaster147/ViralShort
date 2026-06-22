@@ -5,8 +5,11 @@ const {
 } = require('../controllers/walletController');
 const { getGiftTypes, sendGift, sendDiamond } = require('../controllers/giftController');
 const {
-  getLeaderboard, getCurrentContest, getPacks, buyPack,
+  getLeaderboard, getCurrentContest, getPacks,
 } = require('../controllers/economyController');
+const {
+  createDiamondOrder, verifyDiamondPayment, checkoutPage,
+} = require('../controllers/razorpayController');
 
 const router = express.Router();
 
@@ -25,8 +28,11 @@ router.post('/gifts/diamond', requireAuth, sendDiamond);
 router.get('/leaderboard', optionalAuth, getLeaderboard);
 router.get('/contest/current', optionalAuth, getCurrentContest);
 
-// Store
+// Store — Razorpay diamond purchases
 router.get('/store/packs', getPacks);
-router.post('/store/buy', requireAuth, buyPack);
+router.post('/store/order', requireAuth, createDiamondOrder);
+router.post('/store/verify', requireAuth, verifyDiamondPayment);
+// Checkout page loaded inside the in-app WebView (no secret, no auth needed).
+router.get('/store/checkout', checkoutPage);
 
 module.exports = router;

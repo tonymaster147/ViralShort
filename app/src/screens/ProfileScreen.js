@@ -91,12 +91,12 @@ export default function ProfileScreen({ navigation }) {
 
       <TouchableOpacity style={styles.wallet} onPress={() => navigation.navigate('Wallet')}>
         <View style={styles.walletItem}>
-          <Text style={[styles.walletValue, { color: colors.coin }]}>🪙 {user.coins}</Text>
-          <Text style={styles.walletLabel}>Coins</Text>
-        </View>
-        <View style={styles.walletItem}>
           <Text style={[styles.walletValue, { color: colors.diamond }]}>💎 {user.diamonds}</Text>
           <Text style={styles.walletLabel}>Diamonds</Text>
+        </View>
+        <View style={styles.walletItem}>
+          <Text style={[styles.walletValue, { color: colors.diamond, fontSize: 15 }]}>＋ Buy</Text>
+          <Text style={styles.walletLabel}>Top up</Text>
         </View>
         <View style={styles.walletItem}>
           <Text style={[styles.walletValue, { color: colors.text, fontSize: 16 }]}>Wallet ›</Text>

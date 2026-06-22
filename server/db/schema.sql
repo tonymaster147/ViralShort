@@ -237,23 +237,27 @@ CREATE TABLE IF NOT EXISTS gifts (
   INDEX idx_gift_creator (creator_id)
 ) ENGINE=InnoDB;
 
--- Coin/diamond packs for purchase (mock payment in MVP).
+-- Diamond packs for purchase (paid with real money via Razorpay).
 CREATE TABLE IF NOT EXISTS coin_packs (
   id          INT AUTO_INCREMENT PRIMARY KEY,
   name        VARCHAR(60) NOT NULL,
-  coins       INT NOT NULL DEFAULT 0,
+  coins       INT NOT NULL DEFAULT 0,        -- legacy/unused (diamonds-only economy)
   diamonds    INT NOT NULL DEFAULT 0,
   price_cents INT NOT NULL                  -- price in INR paise (₹ = price_cents/100)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS purchases (
-  id          INT AUTO_INCREMENT PRIMARY KEY,
-  user_id     INT NOT NULL,
-  pack_id     INT NOT NULL,
-  status      ENUM('pending','completed','failed') NOT NULL DEFAULT 'completed',
-  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  id                  INT AUTO_INCREMENT PRIMARY KEY,
+  user_id             INT NOT NULL,
+  pack_id             INT NOT NULL,
+  status              ENUM('created','pending','completed','failed') NOT NULL DEFAULT 'created',
+  razorpay_order_id   VARCHAR(64) DEFAULT NULL,
+  razorpay_payment_id VARCHAR(64) DEFAULT NULL,
+  diamonds            INT NOT NULL DEFAULT 0,  -- diamonds credited on completion
+  created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_purchase_user FOREIGN KEY (user_id) REFERENCES users(id)      ON DELETE CASCADE,
-  CONSTRAINT fk_purchase_pack FOREIGN KEY (pack_id) REFERENCES coin_packs(id)
+  CONSTRAINT fk_purchase_pack FOREIGN KEY (pack_id) REFERENCES coin_packs(id),
+  INDEX idx_rzp_order (razorpay_order_id)
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
@@ -292,9 +296,11 @@ INSERT INTO gift_types (name, coin_cost, diamond_value) VALUES
   ('Rocket', 1000, 650)
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
+-- Diamond packs (purchased with real money via Razorpay). price_cents = INR paise.
 INSERT INTO coin_packs (name, coins, diamonds, price_cents) VALUES
-  ('Starter', 100, 0, 9900),         -- ₹99
-  ('Popular', 600, 0, 49900),        -- ₹499
-  ('Mega', 1500, 50, 99900),         -- ₹999
-  ('Diamond Pouch', 0, 500, 199900)  -- ₹1999
+  ('Pocket',  0, 50,   4900),    -- ₹49
+  ('Starter', 0, 120,  9900),    -- ₹99
+  ('Popular', 0, 650,  49900),   -- ₹499
+  ('Mega',    0, 1400, 99900),   -- ₹999
+  ('Pro',     0, 3000, 199900)   -- ₹1999
 ON DUPLICATE KEY UPDATE name = VALUES(name);

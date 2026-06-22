@@ -47,16 +47,17 @@ async function signup(req, res, next) {
       return res.status(409).json({ ok: false, error: 'Username or email already taken' });
     }
 
+    const WELCOME_DIAMONDS = 20; // welcome bonus
     const hash = await bcrypt.hash(password, 10);
     const [result] = await pool.query(
-      'INSERT INTO users (username, email, password_hash, display_name, coins) VALUES (?, ?, ?, ?, ?)',
-      [username, email, hash, username, 50] // welcome bonus: 50 coins
+      'INSERT INTO users (username, email, password_hash, display_name, diamonds) VALUES (?, ?, ?, ?, ?)',
+      [username, email, hash, username, WELCOME_DIAMONDS]
     );
 
     // Record welcome bonus in the ledger.
     await pool.query(
-      'INSERT INTO coin_transactions (user_id, currency, amount, reason) VALUES (?, "coins", 50, "signup_bonus")',
-      [result.insertId]
+      'INSERT INTO coin_transactions (user_id, currency, amount, reason) VALUES (?, "diamonds", ?, "signup_bonus")',
+      [result.insertId, WELCOME_DIAMONDS]
     );
 
     const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [result.insertId]);

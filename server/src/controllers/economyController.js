@@ -1,6 +1,5 @@
 const { pool } = require('../config/db');
 const { fileUrl } = require('../config/url');
-const { changeBalance, withTransaction } = require('./walletHelper');
 
 // ---------- LEADERBOARD ----------
 
@@ -85,16 +84,16 @@ async function getCurrentContest(req, res, next) {
   }
 }
 
-// ---------- PURCHASES (mock checkout) ----------
+// ---------- DIAMOND PACKS ----------
 
-// GET /api/store/packs  -> coin/diamond packs
+// GET /api/store/packs  -> diamond packs for purchase (paid via Razorpay)
 async function getPacks(req, res, next) {
   try {
-    const [rows] = await pool.query('SELECT id, name, coins, diamonds, price_cents FROM coin_packs ORDER BY price_cents');
+    const [rows] = await pool.query('SELECT id, name, diamonds, price_cents FROM coin_packs WHERE diamonds > 0 ORDER BY price_cents');
     res.json({
       ok: true,
       packs: rows.map((p) => ({
-        id: p.id, name: p.name, coins: p.coins, diamonds: p.diamonds,
+        id: p.id, name: p.name, diamonds: p.diamonds,
         priceCents: p.price_cents, currency: 'INR',
         priceLabel: `₹${Math.round(p.price_cents / 100)}`,
       })),
@@ -104,31 +103,4 @@ async function getPacks(req, res, next) {
   }
 }
 
-// POST /api/store/buy  body: { packId }  -> mock purchase, credits the pack
-async function buyPack(req, res, next) {
-  try {
-    const packId = Number(req.body.packId);
-    const [[pack]] = await pool.query('SELECT * FROM coin_packs WHERE id = ?', [packId]);
-    if (!pack) return res.status(404).json({ ok: false, error: 'Pack not found' });
-
-    await withTransaction(async (conn) => {
-      const [purchase] = await conn.query(
-        "INSERT INTO purchases (user_id, pack_id, status) VALUES (?, ?, 'completed')",
-        [req.userId, packId]
-      );
-      if (pack.coins > 0) {
-        await changeBalance(conn, req.userId, 'coins', pack.coins, 'purchase', purchase.insertId);
-      }
-      if (pack.diamonds > 0) {
-        await changeBalance(conn, req.userId, 'diamonds', pack.diamonds, 'purchase', purchase.insertId);
-      }
-    });
-
-    const [[u]] = await pool.query('SELECT coins, diamonds FROM users WHERE id = ?', [req.userId]);
-    res.json({ ok: true, coins: u.coins, diamonds: u.diamonds, purchased: { coins: pack.coins, diamonds: pack.diamonds } });
-  } catch (err) {
-    next(err);
-  }
-}
-
-module.exports = { getLeaderboard, getCurrentContest, getPacks, buyPack };
+module.exports = { getLeaderboard, getCurrentContest, getPacks };

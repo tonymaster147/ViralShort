@@ -34,7 +34,7 @@ export default function ContestScreen({ navigation }) {
       <Text style={styles.trophy}>🏆</Text>
       <Text style={styles.title}>{contest ? contest.title : 'No active contest'}</Text>
       {contest && <Text style={styles.timer}>{timeLeft(contest.endsAt)}</Text>}
-      <Text style={styles.prizes}>Prizes: 🥇 1000🪙+500💎 · 🥈 500🪙+200💎 · 🥉 250🪙+100💎</Text>
+      <Text style={styles.prizes}>Prizes: 🥇 500💎 · 🥈 200💎 · 🥉 100💎</Text>
       <Text style={styles.rule}>Score = likes×3 + views + gift diamonds×5</Text>
     </View>
   );

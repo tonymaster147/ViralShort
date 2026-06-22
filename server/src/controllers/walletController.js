@@ -1,7 +1,7 @@
 const { pool } = require('../config/db');
 const { changeBalance, withTransaction } = require('./walletHelper');
 
-const DAILY_BONUS = 20; // coins per daily claim
+const DAILY_BONUS = 5; // diamonds per daily claim
 
 // GET /api/wallet  -> balances
 async function getWallet(req, res, next) {
@@ -61,7 +61,7 @@ async function claimDaily(req, res, next) {
     }
 
     await withTransaction(async (conn) => {
-      await changeBalance(conn, req.userId, 'coins', DAILY_BONUS, 'daily_login');
+      await changeBalance(conn, req.userId, 'diamonds', DAILY_BONUS, 'daily_login');
     });
 
     const [[u]] = await pool.query('SELECT coins, diamonds FROM users WHERE id = ?', [req.userId]);

@@ -9,7 +9,6 @@ import { toggleLike, toggleFollow } from '../api/social';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { filterOverlay } from '../theme/filters';
-import GiftSheet from './GiftSheet';
 import DiamondSheet from './DiamondSheet';
 
 // One full-screen reel. `active` controls play/pause as the user swipes.
@@ -57,7 +56,6 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
   const [diamonds, setDiamonds] = useState(video.diamonds || 0);
   const [views, setViews] = useState(video.views || 0);
   const [following, setFollowing] = useState(false);
-  const [giftOpen, setGiftOpen] = useState(false);
   const [diamondOpen, setDiamondOpen] = useState(false);
 
   // Live stats: update like/view/diamond counts when the server broadcasts them.
@@ -164,13 +162,6 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
           <Text style={styles.actionLabel}>{diamonds}</Text>
         </TouchableOpacity>
 
-        {!isOwn && (
-          <TouchableOpacity style={styles.action} onPress={() => setGiftOpen(true)}>
-            <Ionicons name="gift" size={32} color={colors.coin} />
-            <Text style={styles.actionLabel}>Gift</Text>
-          </TouchableOpacity>
-        )}
-
         <TouchableOpacity style={styles.action}>
           <Ionicons name="arrow-redo" size={32} color="#fff" />
           <Text style={styles.actionLabel}>Share</Text>
@@ -210,11 +201,6 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
         <Text style={styles.views}>👁 {views} views</Text>
       </View>
 
-      <GiftSheet
-        visible={giftOpen}
-        videoId={video.id}
-        onClose={() => setGiftOpen(false)}
-      />
       <DiamondSheet
         visible={diamondOpen}
         videoId={video.id}

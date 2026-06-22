@@ -3,11 +3,11 @@ const { pool } = require('../config/db');
 const { changeBalance, withTransaction } = require('../controllers/walletHelper');
 const { notify } = require('../controllers/notificationHelper');
 
-// Reward tiers for the top 3 contest winners.
+// Reward tiers (diamonds) for the top 3 contest winners.
 const REWARDS = [
-  { coins: 1000, diamonds: 500 }, // 1st
-  { coins: 500, diamonds: 200 },  // 2nd
-  { coins: 250, diamonds: 100 },  // 3rd
+  { diamonds: 500 }, // 1st
+  { diamonds: 200 }, // 2nd
+  { diamonds: 100 }, // 3rd
 ];
 
 // Ensure there is an active contest; create a 7-day one if none.
@@ -52,7 +52,6 @@ async function closeFinishedContests(app) {
           'INSERT IGNORE INTO contest_entries (contest_id, video_id, user_id, score, rank) VALUES (?, ?, ?, ?, ?)',
           [contest.id, w.video_id, w.user_id, w.score, i + 1]
         );
-        if (reward.coins) await changeBalance(conn, w.user_id, 'coins', reward.coins, 'contest_reward', contest.id);
         if (reward.diamonds) await changeBalance(conn, w.user_id, 'diamonds', reward.diamonds, 'contest_reward', contest.id);
       }
       await conn.query(`UPDATE contests SET status = 'closed' WHERE id = ?`, [contest.id]);

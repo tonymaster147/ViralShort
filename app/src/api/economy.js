@@ -1,4 +1,5 @@
 import client from './client';
+import { API_URL } from './config';
 
 // Wallet
 export async function fetchWallet() {
@@ -15,19 +16,10 @@ export async function fetchDailyStatus() {
 }
 export async function claimDaily() {
   const res = await client.post('/wallet/daily/claim');
-  return res.data; // { claimed, coins, diamonds }
+  return res.data; // { claimed, diamonds }
 }
 
-// Gifts
-export async function fetchGiftTypes() {
-  const res = await client.get('/gifts/types');
-  return res.data.gifts;
-}
-export async function sendGift(giftTypeId, videoId) {
-  const res = await client.post('/gifts/send', { giftTypeId, videoId });
-  return res.data; // { coins, diamonds, gift }
-}
-
+// Diamonds — direct send to a creator
 export async function sendDiamond(videoId, amount) {
   const res = await client.post('/gifts/diamond', { videoId, amount });
   return res.data; // { diamonds, creatorDiamonds, amount }
@@ -43,12 +35,26 @@ export async function fetchContest() {
   return res.data; // { contest, entries }
 }
 
-// Store
+// Store — diamond packs paid via Razorpay
 export async function fetchPacks() {
   const res = await client.get('/store/packs');
   return res.data.packs;
 }
-export async function buyPack(packId) {
-  const res = await client.post('/store/buy', { packId });
-  return res.data; // { coins, diamonds, purchased }
+
+// Create a Razorpay order for a diamond pack (server returns order id + public key).
+export async function createDiamondOrder(packId) {
+  const res = await client.post('/store/order', { packId });
+  return res.data; // { orderId, amount, currency, keyId, pack }
+}
+
+// Verify the Razorpay payment server-side; on success diamonds are credited.
+export async function verifyDiamondPayment(payload) {
+  const res = await client.post('/store/verify', payload);
+  return res.data; // { diamonds, credited }
+}
+
+// URL of the server-hosted Razorpay checkout page (loaded inside a WebView).
+export function checkoutUrl({ orderId, keyId, amount, name = 'ViralShort', desc = 'Buy diamonds' }) {
+  const q = new URLSearchParams({ oid: orderId, key: keyId, amt: String(amount), name, desc });
+  return `${API_URL}/store/checkout?${q.toString()}`;
 }
