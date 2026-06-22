@@ -15,15 +15,16 @@ import AudioTrimmer from '../components/AudioTrimmer';
 import AudioPanel from '../components/AudioPanel';
 import VoiceOverRecorder from '../components/VoiceOverRecorder';
 import TagPeopleModal from '../components/TagPeopleModal';
-import { uploadVideo } from '../api/videos';
 import { saveDraft, deleteDraft } from '../api/drafts';
 import { FILTERS, filterOverlay } from '../theme/filters';
 import { useTheme } from '../theme/ThemeContext';
+import { useUpload } from '../context/UploadContext';
 
 export default function CreateScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const upload = useUpload();
   const [asset, setAsset] = useState(null);
   const [caption, setCaption] = useState('');
   const [filter, setFilter] = useState('none');
@@ -47,8 +48,6 @@ export default function CreateScreen({ navigation, route }) {
   const [clips, setClips] = useState(null);     // multi-clip uris from the camera
   const [clipItems, setClipItems] = useState(null); // edited gallery clips (with meta)
   const [overlay, setOverlay] = useState(null); // editor overlay (text/stickers/draw)
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
 
   // Publish extras
   const [location, setLocation] = useState(null);   // { name, lat, lng }
@@ -210,10 +209,12 @@ export default function CreateScreen({ navigation, route }) {
 
   const onUpload = async () => {
     if (!asset) return Alert.alert('Pick a video first');
-    setUploading(true);
-    setProgress(0);
-    try {
-      await uploadVideo(asset, caption, setProgress, {
+    // Dispatch to the background uploader, then free the Create screen immediately.
+    if (draftId) { try { await deleteDraft(draftId); } catch (_) {} }
+    upload.start({
+      asset,
+      caption,
+      opts: {
         clips: clips && clips.length ? clips : null,
         clipItems: clipItems && clipItems.length ? clipItems : null,
         overlay: overlay || null,
@@ -232,23 +233,10 @@ export default function CreateScreen({ navigation, route }) {
         locationLat: location?.lat ?? null,
         locationLng: location?.lng ?? null,
         scheduledAt: scheduledAt ? scheduledAt.toISOString() : null,
-      });
-      if (draftId) { try { await deleteDraft(draftId); } catch (_) {} }
-      Alert.alert(
-        scheduledAt ? 'Scheduled! 🗓️' : 'Posted! 🎉',
-        scheduledAt
-          ? `Your reel will publish on ${scheduledAt.toLocaleString()}.`
-          : 'Your reel is processing and will appear shortly (check your profile).'
-      );
-      resetAll();
-      navigation.navigate('Feed');
-    } catch (err) {
-      const msg = err.response?.data?.error
-        || (err.message?.includes('timeout') ? 'Upload timed out — check Wi-Fi and try again.' : 'Could not upload. Check that the server is running.');
-      Alert.alert('Upload failed', msg);
-    } finally {
-      setUploading(false);
-    }
+      },
+    });
+    resetAll();
+    navigation.navigate('Feed');
   };
 
   const resetAll = () => {
@@ -423,14 +411,7 @@ export default function CreateScreen({ navigation, route }) {
         multiline maxLength={500}
       />
 
-      {uploading ? (
-        <View style={styles.progressWrap}>
-          <View style={[styles.progressBar, { width: `${progress}%` }]} />
-          <Text style={styles.progressText}>{progress}%</Text>
-        </View>
-      ) : null}
-
-      <Button title="Post Reel" onPress={onUpload} loading={uploading} disabled={!asset} />
+      <Button title="Post Reel" onPress={onUpload} disabled={!asset} />
       {asset ? <View style={{ height: 10 }} /> : null}
       {asset ? <Button title="Save draft" onPress={onSaveDraft} variant="outline" /> : null}
 

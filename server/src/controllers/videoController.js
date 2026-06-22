@@ -6,6 +6,7 @@ function publicVideo(row, viewerId) {
   return {
     id: row.id,
     videoUrl: fileUrl(row.video_path),
+    hlsUrl: fileUrl(row.hls_path),
     thumbUrl: fileUrl(row.thumb_path),
     coverUrl: fileUrl(row.cover_path),
     caption: row.caption,
@@ -254,6 +255,19 @@ async function processInBackground(app, videoId, inputPath, coverTime, ownerId, 
       const io = app.get('io');
       if (io) io.to(`user:${ownerId}`).emit(scheduled ? 'video:scheduled' : 'video:ready', { videoId });
     } catch (_) {}
+
+    // Generate HLS in the background (doesn't block availability; used on next load).
+    (async () => {
+      try {
+        const path = require('path');
+        const { generateHls } = require('../jobs/hlsGenerator');
+        const abs = path.join(__dirname, '..', '..', 'uploads', out.videoRel);
+        const hlsRel = await generateHls(abs, videoId);
+        if (hlsRel) await pool.query('UPDATE videos SET hls_path = ? WHERE id = ?', [hlsRel, videoId]);
+      } catch (e) {
+        console.error('[hls] error:', e.message);
+      }
+    })();
   } catch (err) {
     console.error('[processor] failed for video', videoId, err.message);
     await pool.query("UPDATE videos SET status='failed' WHERE id=?", [videoId]).catch(() => {});

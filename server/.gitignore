@@ -4,6 +4,9 @@ testtmp/
 uploads/videos/*
 uploads/thumbs/*
 uploads/avatars/*
+uploads/covers/*
+uploads/hls/*
+uploads/overlays/*
 !uploads/videos/.gitkeep
 !uploads/thumbs/.gitkeep
 !uploads/avatars/.gitkeep

@@ -115,6 +115,12 @@ export default function FeedScreen({ navigation }) {
           getItemLayout={(_, index) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index })}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
+          // Preload + memory: keep only a few players alive, preload neighbours.
+          windowSize={3}
+          maxToRenderPerBatch={3}
+          initialNumToRender={2}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.text} />
           }

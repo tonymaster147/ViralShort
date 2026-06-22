@@ -16,12 +16,16 @@ import DiamondSheet from './DiamondSheet';
 export default function VideoCard({ video, active, height, onOpenComments, onUserPress }) {
   const { user } = useAuth();
   const { on } = useSocket();
-  const player = useVideoPlayer(video.videoUrl, (p) => {
+  // Prefer HLS (segmented streaming) when available, else the MP4.
+  const player = useVideoPlayer(video.hlsUrl || video.videoUrl, (p) => {
     p.loop = true;
     p.muted = false;
   });
 
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
+  const { status } = useEvent(player, 'statusChange', { status: player.status });
+  // Show the cover poster instantly until the first frame is actually rendering.
+  const showPoster = !isPlaying || status !== 'readyToPlay';
 
   // Local social state (seeded from server, updated optimistically).
   const [liked, setLiked] = useState(!!video.liked);
@@ -98,6 +102,10 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
           contentFit="cover"
           nativeControls={false}
         />
+        {/* Instant-open poster: cover/thumb shown until the video starts. */}
+        {showPoster && (video.coverUrl || video.thumbUrl) ? (
+          <Image source={{ uri: video.coverUrl || video.thumbUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        ) : null}
         {video.filter ? (
           <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: filterOverlay(video.filter) }]} />
         ) : null}
