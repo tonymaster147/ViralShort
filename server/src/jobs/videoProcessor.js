@@ -42,16 +42,16 @@ function compress(inPath) {
       .outputOptions([
         '-c:v', 'libx264',
         '-profile:v', 'high',
-        '-level', '4.0',
-        '-preset', 'veryfast',
-        '-crf', '26',
-        '-maxrate', '2500k',
-        '-bufsize', '5000k',
-        '-vf', "scale='min(720,iw)':-2,format=yuv420p",
+        '-level', '4.1',
+        '-preset', 'medium',        // better quality per bit than veryfast
+        '-crf', '23',
+        '-maxrate', '4500k',        // 1080p quality, still streamable on Wi-Fi/4G
+        '-bufsize', '9000k',
+        '-vf', "scale='min(1080,iw)':-2,format=yuv420p",
         '-r', '30',
         '-g', '60',                 // keyframe every 2s — faster seek/start
         '-c:a', 'aac',
-        '-b:a', '128k',
+        '-b:a', '160k',
         '-movflags', '+faststart',  // moov atom at front for instant start
       ])
       .on('end', () => resolve({ outPath, outName }))
