@@ -195,6 +195,23 @@ export default function CreateScreen({ navigation, route }) {
     }
   };
 
+  // Phone's native camera — best quality (HDR/beauty/stabilization), one clip.
+  const pickFromPhoneCamera = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) return Alert.alert('Permission needed', 'Allow camera access to record.');
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['videos'],
+      videoMaxDuration: 60,
+      quality: 1,
+      videoExportPreset: ImagePicker.VideoExportPreset?.HighestQuality,
+    });
+    if (result.canceled || !result.assets?.length) return;
+    const a = result.assets[0];
+    setClips(null); setClipItems(null);
+    setAsset(a);
+    try { player.replace(a.uri); } catch (_) {}
+  };
+
   // Gallery: multi-select videos + images, then open the clip editor.
   const pickFromGallery = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -304,12 +321,19 @@ export default function CreateScreen({ navigation, route }) {
       ) : (
         <View style={styles.pickRow}>
           <TouchableOpacity style={styles.pickCard} onPress={() => navigation.navigate('Camera')}>
-            <Ionicons name="videocam" size={34} color={colors.text} />
+            <Ionicons name="videocam" size={30} color={colors.text} />
             <Text style={styles.pickLabel}>Record</Text>
+            <Text style={styles.pickSub}>multi-clip</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.pickCard} onPress={pickFromPhoneCamera}>
+            <Ionicons name="camera" size={30} color={colors.text} />
+            <Text style={styles.pickLabel}>Phone Cam</Text>
+            <Text style={styles.pickSub}>best quality</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.pickCard} onPress={pickFromGallery}>
-            <Ionicons name="images" size={34} color={colors.text} />
+            <Ionicons name="images" size={30} color={colors.text} />
             <Text style={styles.pickLabel}>Gallery</Text>
+            <Text style={styles.pickSub}>photos + videos</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -457,9 +481,10 @@ const makeStyles = (colors) => StyleSheet.create({
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
   title: { color: colors.text, fontSize: 24, fontWeight: '800' },
   draftsLink: { color: colors.primary, fontWeight: '800', fontSize: 15 },
-  pickRow: { flexDirection: 'row', gap: 14, marginBottom: 20 },
-  pickCard: { flex: 1, backgroundColor: colors.card, borderRadius: 16, paddingVertical: 36, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
-  pickLabel: { color: colors.text, fontWeight: '700', marginTop: 8 },
+  pickRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  pickCard: { flex: 1, backgroundColor: colors.card, borderRadius: 16, paddingVertical: 26, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  pickLabel: { color: colors.text, fontWeight: '700', marginTop: 8, fontSize: 13 },
+  pickSub: { color: colors.textMuted, fontSize: 10, marginTop: 2 },
   previewWrap: { height: 360, borderRadius: 16, overflow: 'hidden', marginBottom: 16, backgroundColor: '#000' },
   preview: { flex: 1 },
   changeBtn: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },

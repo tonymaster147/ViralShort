@@ -127,7 +127,6 @@ export default function CameraScreen({ navigation }) {
         enableTorch={torch}
         zoom={zoom}
         mode="video"
-        videoQuality="1080p"
         videoBitrate={12000000}
         autofocus="on"
       />

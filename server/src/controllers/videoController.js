@@ -214,8 +214,12 @@ async function createVideo(req, res, next) {
     const [rows] = await pool.query(`${baseSelect(req.userId)} WHERE v.id = ?`, params);
     res.status(201).json({ ok: true, video: publicVideo(rows[0], req.userId) });
 
+    // Clean up noisy mic audio only when the original camera audio is kept
+    // (no music/voice added and not muted) — never denoise music.
+    const denoiseAudio = tracks.length === 0 && originalVolume > 0;
+
     // --- Background processing --- (final status: 'scheduled' if scheduled, else 'ready')
-    processInBackground(req.app, videoId, finalPath, coverTime, req.userId, !!scheduledAt, overlay).catch((e) =>
+    processInBackground(req.app, videoId, finalPath, coverTime, req.userId, !!scheduledAt, overlay, denoiseAudio).catch((e) =>
       console.error('[processor] background error:', e.message)
     );
   } catch (err) {
@@ -240,10 +244,10 @@ async function attachMentions(app, videoId, caption, explicit, actorId) {
 }
 
 // Compress + overlay-bake + cover + thumbnail + probe, then mark ready/scheduled and notify.
-async function processInBackground(app, videoId, inputPath, coverTime, ownerId, scheduled = false, overlay = null) {
+async function processInBackground(app, videoId, inputPath, coverTime, ownerId, scheduled = false, overlay = null, denoise = false) {
   try {
     const { processVideo } = require('../jobs/videoProcessor');
-    const out = await processVideo(inputPath, { coverTime, overlay });
+    const out = await processVideo(inputPath, { coverTime, overlay, denoise });
     const finalStatus = scheduled ? 'scheduled' : 'ready';
     await pool.query(
       `UPDATE videos SET video_path=?, thumb_path=?, cover_path=?, duration=?, width=?, height=?, file_size=?, status=?

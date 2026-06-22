@@ -31,29 +31,35 @@ function probe(filePath) {
   });
 }
 
-// Compress for SMOOTH mobile feed streaming: 720p, capped bitrate, faststart.
-// 1080p/uncapped stalls on Wi-Fi; ~720p @ ≤2.5 Mbps is the short-video standard.
+// Compress + web-optimize: 1080p, capped bitrate, faststart.
+// `denoise` cleans up noisy mic audio (high-pass + FFT denoise) — only used when
+// the original audio is kept (never on music, which would muffle it).
 // Returns the new filename, or the original if compression fails.
-function compress(inPath) {
+function compress(inPath, { denoise = false } = {}) {
   return new Promise((resolve) => {
     const outName = `opt_${rand()}.mp4`;
     const outPath = path.join(VIDEOS_DIR, outName);
+    const opts = [
+      '-c:v', 'libx264',
+      '-profile:v', 'high',
+      '-level', '4.1',
+      '-preset', 'medium',        // better quality per bit than veryfast
+      '-crf', '23',
+      '-maxrate', '4500k',        // 1080p quality, still streamable on Wi-Fi/4G
+      '-bufsize', '9000k',
+      '-vf', "scale='min(1080,iw)':-2,format=yuv420p",
+      '-r', '30',
+      '-g', '60',                 // keyframe every 2s — faster seek/start
+      '-c:a', 'aac',
+      '-b:a', '160k',
+      '-movflags', '+faststart',  // moov atom at front for instant start
+    ];
+    if (denoise) {
+      // highpass cuts rumble/handling; afftdn removes hiss; mild to keep voice natural
+      opts.splice(opts.indexOf('-c:a'), 0, '-af', 'highpass=f=80,afftdn=nr=10:nf=-25');
+    }
     ffmpeg(inPath)
-      .outputOptions([
-        '-c:v', 'libx264',
-        '-profile:v', 'high',
-        '-level', '4.1',
-        '-preset', 'medium',        // better quality per bit than veryfast
-        '-crf', '23',
-        '-maxrate', '4500k',        // 1080p quality, still streamable on Wi-Fi/4G
-        '-bufsize', '9000k',
-        '-vf', "scale='min(1080,iw)':-2,format=yuv420p",
-        '-r', '30',
-        '-g', '60',                 // keyframe every 2s — faster seek/start
-        '-c:a', 'aac',
-        '-b:a', '160k',
-        '-movflags', '+faststart',  // moov atom at front for instant start
-      ])
+      .outputOptions(opts)
       .on('end', () => resolve({ outPath, outName }))
       .on('error', (err) => {
         console.error('[processor] compress failed:', err.message);
@@ -95,12 +101,12 @@ function extractThumb(inPath, atSeconds = 1) {
 //   inputPath  - absolute path to the source video
 //   coverTime  - seconds to grab the cover/thumb frame from (default 0/1)
 // Returns { videoRel, thumbRel, coverRel, duration, width, height, fileSize }.
-async function processVideo(inputPath, { coverTime = 0, overlay = null } = {}) {
+async function processVideo(inputPath, { coverTime = 0, overlay = null, denoise = false } = {}) {
   const meta = await probe(inputPath);
   const safeCover = Math.min(coverTime || 0, meta.duration ? meta.duration - 0.1 : coverTime || 0);
 
   // Compress; fall back to the original file if it fails.
-  const compressed = await compress(inputPath);
+  const compressed = await compress(inputPath, { denoise });
   let finalPath = inputPath;
   let videoRel = `videos/${path.basename(inputPath)}`;
   if (compressed) {
