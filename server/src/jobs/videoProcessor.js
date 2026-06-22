@@ -31,42 +31,60 @@ function probe(filePath) {
   });
 }
 
+// RNNoise model (relative path so ffmpeg's filter parser avoids the Windows
+// drive-colon / space-in-path issues). Resolved from the server cwd.
+const RNNOISE_MODEL_REL = 'assets/models/std.rnnn';
+const RNNOISE_MODEL_ABS = path.join(__dirname, '..', '..', 'assets', 'models', 'std.rnnn');
+
 // Compress + web-optimize: 1080p, capped bitrate, faststart.
-// `denoise` cleans up noisy mic audio (high-pass + FFT denoise) — only used when
-// the original audio is kept (never on music, which would muffle it).
-// Returns the new filename, or the original if compression fails.
+// `denoise` cleans noisy mic audio with RNNoise (high-pass + arnndn) — only when
+// the original audio is kept (never on music, which it would muffle).
+// Returns the new filename, or null if compression fails.
 function compress(inPath, { denoise = false } = {}) {
-  return new Promise((resolve) => {
+  const useDenoise = denoise && fs.existsSync(RNNOISE_MODEL_ABS);
+
+  const run = (withDenoise) => new Promise((resolve, reject) => {
     const outName = `opt_${rand()}.mp4`;
     const outPath = path.join(VIDEOS_DIR, outName);
     const opts = [
       '-c:v', 'libx264',
       '-profile:v', 'high',
       '-level', '4.1',
-      '-preset', 'medium',        // better quality per bit than veryfast
+      '-preset', 'medium',
       '-crf', '23',
-      '-maxrate', '4500k',        // 1080p quality, still streamable on Wi-Fi/4G
+      '-maxrate', '4500k',
       '-bufsize', '9000k',
       '-vf', "scale='min(1080,iw)':-2,format=yuv420p",
       '-r', '30',
-      '-g', '60',                 // keyframe every 2s — faster seek/start
+      '-g', '60',
       '-c:a', 'aac',
       '-b:a', '160k',
-      '-movflags', '+faststart',  // moov atom at front for instant start
+      '-movflags', '+faststart',
     ];
-    if (denoise) {
-      // highpass cuts rumble/handling; afftdn removes hiss; mild to keep voice natural
-      opts.splice(opts.indexOf('-c:a'), 0, '-af', 'highpass=f=80,afftdn=nr=10:nf=-25');
+    if (withDenoise) {
+      // high-pass cuts rumble; RNNoise removes steady background noise (fans, hiss)
+      opts.splice(opts.indexOf('-c:a'), 0, '-af', `highpass=f=80,arnndn=m=${RNNOISE_MODEL_REL}`);
     }
     ffmpeg(inPath)
       .outputOptions(opts)
       .on('end', () => resolve({ outPath, outName }))
-      .on('error', (err) => {
-        console.error('[processor] compress failed:', err.message);
-        resolve(null);
-      })
+      .on('error', reject)
       .save(outPath);
   });
+
+  // Try with denoise; if it fails (e.g., model path issue), retry without it
+  // so we still produce a compressed file rather than serving the raw upload.
+  return (async () => {
+    try {
+      return await run(useDenoise);
+    } catch (err) {
+      console.error('[processor] compress failed:', err.message);
+      if (useDenoise) {
+        try { return await run(false); } catch (e2) { console.error('[processor] retry failed:', e2.message); }
+      }
+      return null;
+    }
+  })();
 }
 
 // Extract a cover frame at `atSeconds` (default 0). Returns rel path or null.

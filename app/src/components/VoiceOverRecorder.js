@@ -34,6 +34,9 @@ export default function VoiceOverRecorder({ voiceover, onRecorded, onClear }) {
     try {
       await recorder.stop();
       setRecording(false);
+      // Reset the audio session so it doesn't leave the mic in recording mode
+      // (which can affect later camera audio capture).
+      try { await AudioModule.setAudioModeAsync({ allowsRecording: false }); } catch (_) {}
       if (recorder.uri) onRecorded({ uri: recorder.uri, name: `voice_${Date.now()}.m4a` });
     } catch (_) {
       setRecording(false);
