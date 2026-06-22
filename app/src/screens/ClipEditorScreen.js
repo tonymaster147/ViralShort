@@ -8,6 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { useTheme } from '../theme/ThemeContext';
+import { setPendingClipItems } from '../api/editorBridge';
 
 const SPEEDS = [0.5, 1, 1.5, 2];
 let cid = 1;
@@ -103,7 +104,8 @@ export default function ClipEditorScreen({ navigation, route }) {
       fit: c.fit,
       duration: c.type === 'image' ? c.imgDur : undefined,
     }));
-    navigation.navigate('CreateMain', { clipItems });
+    setPendingClipItems(clipItems);
+    navigation.goBack();
   };
 
   const totalSec = clips.reduce((s, c) => {

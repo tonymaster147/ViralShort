@@ -8,6 +8,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
+import { setPendingOverlay } from '../api/editorBridge';
 
 const COLORS = ['#ffffff', '#000000', '#FF4D4F', '#FFC107', '#2ECC71', '#25F4EE', '#7C5CFF', '#FF6FB5'];
 const EMOJIS = ['❤️', '😂', '🔥', '💯', '😍', '🎉', '✨', '👍', '😎', '🥳', '👀', '💀', '⭐', '🌈', '🚀'];
@@ -143,7 +144,10 @@ export default function EditorScreen({ navigation, route }) {
     for (const s of strokes) {
       out.push({ type: 'draw', color: s.color, width: s.width / W, points: s.points.map((p) => ({ x: p.x / W, y: p.y / H })) });
     }
-    navigation.navigate('CreateMain', { overlay: { layers: out } });
+    // Hand the overlay back via the bridge and goBack() — this keeps Create's
+    // in-progress video instead of navigating to a fresh (empty) Create screen.
+    setPendingOverlay({ layers: out });
+    navigation.goBack();
   };
 
   return (

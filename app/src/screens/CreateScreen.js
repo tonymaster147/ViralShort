@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, AppState,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -17,6 +17,7 @@ import AudioPanel from '../components/AudioPanel';
 import VoiceOverRecorder from '../components/VoiceOverRecorder';
 import TagPeopleModal from '../components/TagPeopleModal';
 import { saveDraft, deleteDraft } from '../api/drafts';
+import { takePendingOverlay, takePendingClipItems } from '../api/editorBridge';
 import { FILTERS, filterOverlay } from '../theme/filters';
 import { useTheme } from '../theme/ThemeContext';
 import { useUpload } from '../context/UploadContext';
@@ -69,16 +70,37 @@ export default function CreateScreen({ navigation, route }) {
     p.muted = originalVolume === 0;
   });
 
-  // Pause the preview when leaving Create (e.g. to the editor) so audio doesn't
-  // play in the background; resume when we come back (e.g. after a picker).
+  // On focus: apply any pending editor/clip results (delivered via the bridge so
+  // the in-progress video isn't lost), pause/resume the preview accordingly.
   useFocusEffect(
     useCallback(() => {
-      if (asset) { try { player.play(); } catch (_) {} }
+      // overlay from the text/sticker/draw editor
+      const ov = takePendingOverlay();
+      if (ov) setOverlay(ov);
+      // edited clips from the clip editor
+      const items = takePendingClipItems();
+      if (items?.length) {
+        setClipItems(items);
+        setClips(null);
+        const first = items[0];
+        setAsset({ uri: first.uri });
+        if (first.type === 'video') { try { player.replace(first.uri); } catch (_) {} }
+      }
+      if (asset || items?.length) { try { player.play(); } catch (_) {} }
       return () => { try { player.pause(); } catch (_) {} };
     }, [player, asset?.uri])
   );
 
-  // Clips recorded in the custom camera.
+  // Resume the preview when the app returns to foreground — system pickers
+  // (document/image picker) pause the video and don't fire navigation focus.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active' && asset) { try { player.play(); } catch (_) {} }
+    });
+    return () => sub.remove();
+  }, [player, asset?.uri]);
+
+  // Clips recorded in the custom camera (camera still uses a route param).
   useEffect(() => {
     const incoming = route?.params?.clips;
     if (incoming?.length) {
@@ -87,23 +109,6 @@ export default function CreateScreen({ navigation, route }) {
       try { player.replace(incoming[0]); } catch (_) {}
     }
   }, [route?.params?.clips]);
-
-  // Overlay returned from the editor.
-  useEffect(() => {
-    if (route?.params?.overlay) setOverlay(route.params.overlay);
-  }, [route?.params?.overlay]);
-
-  // Edited clips returned from the clip editor.
-  useEffect(() => {
-    const items = route?.params?.clipItems;
-    if (items?.length) {
-      setClipItems(items);
-      setClips(null);
-      const first = items[0];
-      setAsset({ uri: first.uri });
-      if (first.type === 'video') { try { player.replace(first.uri); } catch (_) {} }
-    }
-  }, [route?.params?.clipItems]);
 
   // Resume a draft if passed in.
   useEffect(() => {
