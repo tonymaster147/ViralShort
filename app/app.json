@@ -19,18 +19,47 @@
     },
     "android": {
       "package": "com.viralshort.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"
-      }
+      },
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "expo-dev-client",
       "expo-video",
       "expo-audio",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "ViralShort uses your camera to record reels.",
+          "microphonePermission": "ViralShort uses your microphone to record audio and voice-overs.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "ViralShort needs access to your photos to pick videos and images.",
+          "cameraPermission": "ViralShort uses your camera to record reels."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "ViralShort uses your location to tag where a reel was made."
+        }
+      ]
     ]
   }
 }
