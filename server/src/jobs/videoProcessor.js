@@ -31,7 +31,8 @@ function probe(filePath) {
   });
 }
 
-// Compress + web-optimize (H.264, faststart). Scales down to max 1080 wide.
+// Compress for SMOOTH mobile feed streaming: 720p, capped bitrate, faststart.
+// 1080p/uncapped stalls on Wi-Fi; ~720p @ ≤2.5 Mbps is the short-video standard.
 // Returns the new filename, or the original if compression fails.
 function compress(inPath) {
   return new Promise((resolve) => {
@@ -40,12 +41,18 @@ function compress(inPath) {
     ffmpeg(inPath)
       .outputOptions([
         '-c:v', 'libx264',
+        '-profile:v', 'high',
+        '-level', '4.0',
         '-preset', 'veryfast',
-        '-crf', '23',
-        '-vf', "scale='min(1080,iw)':-2",
+        '-crf', '26',
+        '-maxrate', '2500k',
+        '-bufsize', '5000k',
+        '-vf', "scale='min(720,iw)':-2,format=yuv420p",
+        '-r', '30',
+        '-g', '60',                 // keyframe every 2s — faster seek/start
         '-c:a', 'aac',
         '-b:a', '128k',
-        '-movflags', '+faststart',
+        '-movflags', '+faststart',  // moov atom at front for instant start
       ])
       .on('end', () => resolve({ outPath, outName }))
       .on('error', (err) => {

@@ -16,10 +16,18 @@ import DiamondSheet from './DiamondSheet';
 export default function VideoCard({ video, active, height, onOpenComments, onUserPress }) {
   const { user } = useAuth();
   const { on } = useSocket();
-  // Prefer HLS (segmented streaming) when available, else the MP4.
-  const player = useVideoPlayer(video.hlsUrl || video.videoUrl, (p) => {
+  // Use the faststart MP4 for the feed — for short clips it starts faster than
+  // single-rendition HLS (fewer round-trips). Buffer is tuned to start quickly.
+  const player = useVideoPlayer(video.videoUrl, (p) => {
     p.loop = true;
     p.muted = false;
+    try {
+      p.bufferOptions = {
+        preferredForwardBufferDuration: 5, // buffer 5s ahead (was 20s default)
+        minBufferForPlayback: 1,           // start after ~1s buffered
+        waitsToMinimizeStalling: false,    // start ASAP
+      };
+    } catch (_) {}
   });
 
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
