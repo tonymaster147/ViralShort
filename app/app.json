@@ -25,10 +25,11 @@
         "backgroundColor": "#000000"
       },
       "permissions": [
-        "CAMERA",
-        "RECORD_AUDIO",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -59,7 +60,14 @@
         {
           "locationAlwaysAndWhenInUsePermission": "ViralShort uses your location to tag where a reel was made."
         }
-      ]
-    ]
+      ],
+      "expo-font",
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f6d9776c-e6d5-4f82-84ff-6336462e9096"
+      }
+    }
   }
 }
