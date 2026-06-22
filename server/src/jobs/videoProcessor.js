@@ -50,15 +50,15 @@ function compress(inPath, { denoise = false } = {}) {
       '-c:v', 'libx264',
       '-profile:v', 'high',
       '-level', '4.1',
-      '-preset', 'medium',
-      '-crf', '23',
-      '-maxrate', '4500k',
-      '-bufsize', '9000k',
+      '-preset', 'fast',          // good quality-per-bit without a slow encode
+      '-crf', '24',
+      '-maxrate', '2800k',        // 1080p but streamable (~TikTok/IG bitrate)
+      '-bufsize', '5600k',
       '-vf', "scale='min(1080,iw)':-2,format=yuv420p",
       '-r', '30',
       '-g', '60',
       '-c:a', 'aac',
-      '-b:a', '160k',
+      '-b:a', '128k',
       '-movflags', '+faststart',
     ];
     if (withDenoise) {

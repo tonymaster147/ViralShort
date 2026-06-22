@@ -23,9 +23,9 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
     p.muted = false;
     try {
       p.bufferOptions = {
-        preferredForwardBufferDuration: 5, // buffer 5s ahead (was 20s default)
-        minBufferForPlayback: 1,           // start after ~1s buffered
-        waitsToMinimizeStalling: false,    // start ASAP
+        preferredForwardBufferDuration: 10, // buffer ahead to avoid mid-play stalls
+        minBufferForPlayback: 1,            // but start after ~1s buffered
+        waitsToMinimizeStalling: false,     // start ASAP
       };
     } catch (_) {}
   });
@@ -117,6 +117,12 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
         {video.filter ? (
           <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: filterOverlay(video.filter) }]} />
         ) : null}
+        {/* Paused indicator — shows a play icon when the user taps to pause. */}
+        {active && !isPlaying && !showPoster ? (
+          <View pointerEvents="none" style={styles.pausedOverlay}>
+            <Ionicons name="play" size={48} color="rgba(255,255,255,0.85)" />
+          </View>
+        ) : null}
       </TouchableOpacity>
 
       {/* Right action rail */}
@@ -198,6 +204,7 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
 
 const styles = StyleSheet.create({
   container: { width: '100%', backgroundColor: colors.bg, justifyContent: 'flex-end' },
+  pausedOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   rail: { position: 'absolute', right: 12, bottom: 120, alignItems: 'center' },
   action: { alignItems: 'center', marginBottom: 20 },
   actionEmoji: { fontSize: 30 },
