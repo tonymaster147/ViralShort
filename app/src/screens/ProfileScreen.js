@@ -25,7 +25,7 @@ function Stat({ value, label }) {
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout, refreshUser } = useAuth();
-  const { on } = useSocket();
+  const { on, unreadNotifications } = useSocket();
   const { colors, mode, setMode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [videos, setVideos] = useState([]);
@@ -54,10 +54,15 @@ export default function ProfileScreen({ navigation }) {
       headerRight: () => (
         <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ paddingHorizontal: 14 }}>
           <Ionicons name="notifications-outline" size={24} color={colors.text} />
+          {unreadNotifications > 0 && (
+            <View style={styles.bellBadge}>
+              <Text style={styles.bellBadgeText}>{unreadNotifications > 9 ? '9+' : unreadNotifications}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       ),
     });
-  }, [navigation]);
+  }, [navigation, unreadNotifications, colors]);
 
   if (!user) return null;
 
@@ -199,6 +204,8 @@ const makeStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.card, borderRadius: 16, paddingVertical: 16, marginBottom: 14,
   },
   stat: { alignItems: 'center' },
+  bellBadge: { position: 'absolute', top: -4, right: 8, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
+  bellBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
   gridTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 24, marginBottom: 4 },
   segment: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 12, padding: 4, gap: 4, marginTop: 8 },
   segmentBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 9 },

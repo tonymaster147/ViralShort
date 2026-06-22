@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { io } from 'socket.io-client';
 import { API_BASE_URL } from '../api/config';
 import { useAuth } from './AuthContext';
+import { fetchUnreadCount } from '../api/social';
 
 const SocketContext = createContext(null);
 
@@ -24,6 +25,9 @@ export function SocketProvider({ children }) {
       setUnreadNotifications(0);
       return;
     }
+    // Seed the bell badge with the real unread count from the server.
+    fetchUnreadCount().then((c) => { if (active) setUnreadNotifications(c || 0); }).catch(() => {});
+
     (async () => {
       const token = await AsyncStorage.getItem('token');
       if (!token || !active) return;

@@ -3,12 +3,14 @@ import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { fetchMessages, sendMessage as sendMessageApi } from '../api/messages';
 import { useSocket } from '../context/SocketContext';
 import { colors } from '../theme/colors';
 
 export default function ChatScreen({ route, navigation }) {
   const { conversationId, user } = route.params;
+  const headerHeight = useHeaderHeight();
   const { on, emit } = useSocket();
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
@@ -74,8 +76,8 @@ export default function ChatScreen({ route, navigation }) {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={headerHeight}
     >
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 30 }} />
