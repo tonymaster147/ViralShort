@@ -1,10 +1,16 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, BackHandler } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { useFocusEffect } from '@react-navigation/native';
 import { checkoutUrl, verifyDiamondPayment } from '../api/economy';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
+
+// Load the native WebView lazily + guarded. If the running dev build predates
+// react-native-webview, requiring it throws ("RNCWebViewModule could not be
+// found") — we catch that so the app still launches and show an update prompt
+// instead of crashing. A fresh dev build includes the module and this resolves.
+let WebView = null;
+try { WebView = require('react-native-webview').WebView; } catch (_) {}
 
 // Hosts the Razorpay Standard Web Checkout inside a WebView. The page posts the
 // payment result back via window.ReactNativeWebView.postMessage; we then verify
@@ -57,6 +63,28 @@ export default function CheckoutScreen({ route, navigation }) {
 
   const uri = checkoutUrl({ orderId, keyId, amount, name: 'ViralShort', desc: `${packName} · ${diamonds} 💎` });
 
+  // Running on an older dev build without the WebView native module.
+  if (!WebView) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.close}>
+            <Text style={styles.closeText}>✕</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Update required</Text>
+          <View style={{ width: 36 }} />
+        </View>
+        <View style={styles.missing}>
+          <Text style={styles.missingEmoji}>🧩</Text>
+          <Text style={styles.missingTitle}>Payments need the latest app</Text>
+          <Text style={styles.missingText}>
+            This build doesn’t include the secure checkout module yet. Install the new dev build, then try again.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -97,4 +125,8 @@ const styles = StyleSheet.create({
   web: { flex: 1, backgroundColor: '#0b0b0f' },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', gap: 14 },
   overlayText: { color: '#fff', fontWeight: '700' },
+  missing: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30, gap: 10 },
+  missingEmoji: { fontSize: 48 },
+  missingTitle: { color: colors.text, fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  missingText: { color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
 });

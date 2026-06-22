@@ -44,7 +44,9 @@
       "Bash(node -e \"console.log\\('webview:', require\\('react-native-webview/package.json'\\).version\\)\")",
       "Bash(powershell -Command \"Get-Process node -ErrorAction SilentlyContinue | Select-Object Id,StartTime | Format-Table -AutoSize\")",
       "Bash(npx expo *)",
-      "Bash(echo \"EXIT $?\")"
+      "Bash(echo \"EXIT $?\")",
+      "Bash(git commit -q -m 'Razorpay diamond purchases + remove coins \\(diamonds-only economy\\) *)",
+      "Bash(timeout 90 git push)"
     ],
     "additionalDirectories": [
       "\\tmp"
