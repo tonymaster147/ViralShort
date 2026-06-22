@@ -31,9 +31,24 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
   });
 
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
-  const { status } = useEvent(player, 'statusChange', { status: player.status });
-  // Show the cover poster instantly until the first frame is actually rendering.
-  const showPoster = !isPlaying || status !== 'readyToPlay';
+  // Poster shows only until the video first starts (instant-open). After that,
+  // pausing shows the play icon — NOT the cover again.
+  const [started, setStarted] = useState(false);
+  useEffect(() => { if (isPlaying && !started) setStarted(true); }, [isPlaying, started]);
+  const showPoster = !started;
+
+  // Thin progress bar at the bottom (position only, no timestamp).
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => {
+      try {
+        const d = player.duration || 0;
+        if (d > 0) setProgress(Math.min(1, (player.currentTime || 0) / d));
+      } catch (_) {}
+    }, 250);
+    return () => clearInterval(id);
+  }, [active, player]);
 
   // Local social state (seeded from server, updated optimistically).
   const [liked, setLiked] = useState(!!video.liked);
@@ -118,12 +133,19 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
           <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: filterOverlay(video.filter) }]} />
         ) : null}
         {/* Paused indicator — shows a play icon when the user taps to pause. */}
-        {active && !isPlaying && !showPoster ? (
+        {active && started && !isPlaying ? (
           <View pointerEvents="none" style={styles.pausedOverlay}>
-            <Ionicons name="play" size={48} color="rgba(255,255,255,0.85)" />
+            <View style={styles.pauseCircle}>
+              <Ionicons name="play" size={40} color="#fff" />
+            </View>
           </View>
         ) : null}
       </TouchableOpacity>
+
+      {/* Thin progress bar at the very bottom of the video. */}
+      <View pointerEvents="none" style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+      </View>
 
       {/* Right action rail */}
       <View style={styles.rail}>
@@ -205,6 +227,9 @@ export default function VideoCard({ video, active, height, onOpenComments, onUse
 const styles = StyleSheet.create({
   container: { width: '100%', backgroundColor: colors.bg, justifyContent: 'flex-end' },
   pausedOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  pauseCircle: { width: 76, height: 76, borderRadius: 38, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', paddingLeft: 4 },
+  progressTrack: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2.5, backgroundColor: 'rgba(255,255,255,0.25)' },
+  progressFill: { height: '100%', backgroundColor: '#fff' },
   rail: { position: 'absolute', right: 12, bottom: 120, alignItems: 'center' },
   action: { alignItems: 'center', marginBottom: 20 },
   actionEmoji: { fontSize: 30 },
