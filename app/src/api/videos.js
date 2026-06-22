@@ -86,8 +86,29 @@ export async function uploadVideo(videoAsset, caption, onProgress, opts = {}) {
   if (opts.scheduledAt) form.append('scheduledAt', opts.scheduledAt);
   if (opts.mentions) form.append('mentions', opts.mentions);
   if (opts.overlay) form.append('overlay', typeof opts.overlay === 'string' ? opts.overlay : JSON.stringify(opts.overlay));
-  // Multi-clip (camera) takes precedence; else a single gallery/recorded video.
-  if (opts.clips?.length) {
+  // Edited gallery clips (with per-clip trim/speed/rotate/crop + image clips).
+  if (opts.clipItems?.length) {
+    const metas = [];
+    opts.clipItems.forEach((c, i) => {
+      const isImg = c.type === 'image';
+      form.append('clips', {
+        uri: c.uri,
+        name: `clip_${i}_${Date.now()}.${isImg ? 'jpg' : 'mp4'}`,
+        type: isImg ? 'image/jpeg' : 'video/mp4',
+      });
+      metas.push({
+        type: c.type,
+        trimStart: c.trimStart || 0,
+        trimDur: c.trimDur != null ? c.trimDur : undefined,
+        speed: c.speed || 1,
+        rotate: c.rotate || 0,
+        fit: c.fit || 'cover',
+        duration: c.duration,
+      });
+    });
+    form.append('clipMeta', JSON.stringify(metas));
+  } else if (opts.clips?.length) {
+    // Multi-clip from the custom camera (no per-clip edits).
     opts.clips.forEach((uri, i) => {
       form.append('clips', { uri, name: `clip_${i}_${Date.now()}.mp4`, type: 'video/mp4' });
     });

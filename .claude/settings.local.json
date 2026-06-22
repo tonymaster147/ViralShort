@@ -7,7 +7,11 @@
       "Bash(grep -n \"import { colors }\\\\|^import React\\\\|const styles = StyleSheet.create\\\\|export default function ProfileScreen\\\\|const { user, logout\" src/screens/ProfileScreen.js)",
       "Bash(node -e \"const {createCanvas}=require\\('@napi-rs/canvas'\\); const c=createCanvas\\(100,100\\); const ctx=c.getContext\\('2d'\\); ctx.fillStyle='red'; ctx.fillRect\\(0,0,50,50\\); console.log\\('napi-canvas OK, png bytes:', c.toBuffer\\('image/png'\\).length\\)\")",
       "Bash(node -e \"console.log\\('svg:', require\\('react-native-svg/package.json'\\).version\\)\")",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(cd \"e:/my projects/viralshort/app\" && rm -rf node_modules/.cache .expo && timeout 240 npx expo export --platform android --output-dir /tmp/vs-clip 2>&1 | tail -8; echo \"EXIT: $?\"; rm -rf /tmp/vs-clip)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
     ]
   }
 }

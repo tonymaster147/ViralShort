@@ -83,10 +83,25 @@ async function createVideo(req, res, next) {
     const clipFiles = req.files?.clips || [];
     let videoFile = req.file || req.files?.video?.[0];
 
+    // Optional per-clip edit metadata (trim/speed/rotate/crop, image clips).
+    let clipMeta = null;
+    if (req.body.clipMeta) { try { clipMeta = JSON.parse(req.body.clipMeta); } catch (_) { clipMeta = null; } }
+
     if (!videoFile && clipFiles.length > 0) {
-      if (clipFiles.length === 1) {
+      if (Array.isArray(clipMeta) && clipMeta.length) {
+        // Gallery/clip-editor path: trim/speed/rotate/crop + image->clip, then concat.
+        try {
+          const { buildFromClips } = require('../jobs/prepareClips');
+          const built = await buildFromClips(clipFiles.map((f) => f.path), clipMeta);
+          videoFile = { path: built.outPath, filename: built.outName };
+        } catch (prepErr) {
+          console.error('[prepare] failed:', prepErr.message);
+          return res.status(500).json({ ok: false, error: 'Could not process clips' });
+        }
+      } else if (clipFiles.length === 1) {
         videoFile = clipFiles[0];
       } else {
+        // Camera path (no per-clip edits): simple concat.
         try {
           const { joinClips } = require('../jobs/concatClips');
           const joined = await joinClips(clipFiles.map((f) => f.path));

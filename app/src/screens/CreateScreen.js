@@ -45,6 +45,7 @@ export default function CreateScreen({ navigation, route }) {
   const [allowDownload, setAllowDownload] = useState(false);
   const [draftId, setDraftId] = useState(null);
   const [clips, setClips] = useState(null);     // multi-clip uris from the camera
+  const [clipItems, setClipItems] = useState(null); // edited gallery clips (with meta)
   const [overlay, setOverlay] = useState(null); // editor overlay (text/stickers/draw)
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -84,6 +85,18 @@ export default function CreateScreen({ navigation, route }) {
   useEffect(() => {
     if (route?.params?.overlay) setOverlay(route.params.overlay);
   }, [route?.params?.overlay]);
+
+  // Edited clips returned from the clip editor.
+  useEffect(() => {
+    const items = route?.params?.clipItems;
+    if (items?.length) {
+      setClipItems(items);
+      setClips(null);
+      const first = items[0];
+      setAsset({ uri: first.uri });
+      if (first.type === 'video') { try { player.replace(first.uri); } catch (_) {} }
+    }
+  }, [route?.params?.clipItems]);
 
   // Resume a draft if passed in.
   useEffect(() => {
@@ -175,27 +188,19 @@ export default function CreateScreen({ navigation, route }) {
     }
   };
 
-  const pickFrom = async (source) => {
-    const opts = {
-      mediaTypes: ImagePicker.MediaTypeOptions?.Videos ?? 'videos',
-      videoMaxDuration: 60,
+  // Gallery: multi-select videos + images, then open the clip editor.
+  const pickFromGallery = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return Alert.alert('Permission needed', 'Allow gallery access to pick media.');
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['videos', 'images'],
+      allowsMultipleSelection: true,
+      selectionLimit: 10,
       quality: 1,
       videoExportPreset: ImagePicker.VideoExportPreset?.HighestQuality,
-    };
-    let result;
-    if (source === 'camera') {
-      const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) return Alert.alert('Permission needed', 'Allow camera access to record.');
-      result = await ImagePicker.launchCameraAsync(opts);
-    } else {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) return Alert.alert('Permission needed', 'Allow gallery access to pick a video.');
-      result = await ImagePicker.launchImageLibraryAsync(opts);
-    }
-    if (result.canceled) return;
-    const a = result.assets[0];
-    setAsset(a);
-    try { player.replace(a.uri); } catch (_) {}
+    });
+    if (result.canceled || !result.assets?.length) return;
+    navigation.navigate('ClipEditor', { assets: result.assets });
   };
 
   // AudioPanel callbacks
@@ -210,6 +215,7 @@ export default function CreateScreen({ navigation, route }) {
     try {
       await uploadVideo(asset, caption, setProgress, {
         clips: clips && clips.length ? clips : null,
+        clipItems: clipItems && clipItems.length ? clipItems : null,
         overlay: overlay || null,
         filter: filter !== 'none' ? filter : null,
         soundId: !music && selectedSound ? selectedSound.id : null,
@@ -250,7 +256,7 @@ export default function CreateScreen({ navigation, route }) {
     setSelectedSound(null); setMusic(null); setVoiceover(null);
     setTrim({ start: 0, duration: null });
     setOriginalVolume(1); setMusicVolume(1); setVoiceVolume(1);
-    setCoverTime(0); setDraftId(null); setVideoDuration(null); setClips(null); setOverlay(null);
+    setCoverTime(0); setDraftId(null); setVideoDuration(null); setClips(null); setClipItems(null); setOverlay(null);
     setLocation(null); setScheduledAt(null);
   };
 
@@ -290,7 +296,7 @@ export default function CreateScreen({ navigation, route }) {
           <TouchableOpacity style={styles.changeBtn} onPress={() => setAsset(null)}>
             <Text style={styles.changeText}>✕ Remove</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('Editor', { videoUri: (clips && clips[0]) || asset.uri })}>
+          <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('Editor', { videoUri: (clipItems && clipItems[0]?.uri) || (clips && clips[0]) || asset.uri })}>
             <Ionicons name="sparkles" size={14} color="#fff" />
             <Text style={styles.editText}>{overlay ? 'Edit ✓' : 'Edit'}</Text>
           </TouchableOpacity>
@@ -305,7 +311,7 @@ export default function CreateScreen({ navigation, route }) {
             <Ionicons name="videocam" size={34} color={colors.text} />
             <Text style={styles.pickLabel}>Record</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.pickCard} onPress={() => pickFrom('library')}>
+          <TouchableOpacity style={styles.pickCard} onPress={pickFromGallery}>
             <Ionicons name="images" size={34} color={colors.text} />
             <Text style={styles.pickLabel}>Gallery</Text>
           </TouchableOpacity>

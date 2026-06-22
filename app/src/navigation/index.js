@@ -29,6 +29,7 @@ import ContestScreen from '../screens/ContestScreen';
 import DraftsScreen from '../screens/DraftsScreen';
 import CameraScreen from '../screens/CameraScreen';
 import EditorScreen from '../screens/EditorScreen';
+import ClipEditorScreen from '../screens/ClipEditorScreen';
 import { useSocket } from '../context/SocketContext';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -114,6 +115,7 @@ function CreateNavigator() {
       <CreateStack.Screen name="CreateMain" component={CreateScreen} options={{ headerShown: false }} />
       <CreateStack.Screen name="Camera" component={CameraScreen} options={{ headerShown: false }} />
       <CreateStack.Screen name="Editor" component={EditorScreen} options={{ headerShown: false }} />
+      <CreateStack.Screen name="ClipEditor" component={ClipEditorScreen} options={{ headerShown: false }} />
       <CreateStack.Screen name="Drafts" component={DraftsScreen} options={{ title: 'Drafts' }} />
     </CreateStack.Navigator>
   );
