@@ -95,7 +95,8 @@ async function getPacks(req, res, next) {
       ok: true,
       packs: rows.map((p) => ({
         id: p.id, name: p.name, coins: p.coins, diamonds: p.diamonds,
-        priceCents: p.price_cents, priceLabel: `$${(p.price_cents / 100).toFixed(2)}`,
+        priceCents: p.price_cents, currency: 'INR',
+        priceLabel: `₹${Math.round(p.price_cents / 100)}`,
       })),
     });
   } catch (err) {

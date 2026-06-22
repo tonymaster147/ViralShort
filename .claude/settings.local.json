@@ -18,7 +18,10 @@
       "Bash(timeout 60 git push)",
       "WebSearch",
       "WebFetch(domain:www.npmjs.com)",
-      "Bash(npm view *)"
+      "Bash(npm view *)",
+      "Bash(grep -rn '\\\\$' src/screens/BuyCoinsScreen.js src/screens/WalletScreen.js)",
+      "Bash(grep -v 'priceLabel\\\\|`\\\\${')",
+      "Bash(grep '\\\\$[0-9]\\\\|USD\\\\|dollar')"
     ],
     "additionalDirectories": [
       "\\tmp"

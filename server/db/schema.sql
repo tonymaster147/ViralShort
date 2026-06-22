@@ -243,7 +243,7 @@ CREATE TABLE IF NOT EXISTS coin_packs (
   name        VARCHAR(60) NOT NULL,
   coins       INT NOT NULL DEFAULT 0,
   diamonds    INT NOT NULL DEFAULT 0,
-  price_cents INT NOT NULL                  -- price in USD cents
+  price_cents INT NOT NULL                  -- price in INR paise (₹ = price_cents/100)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS purchases (
@@ -293,8 +293,8 @@ INSERT INTO gift_types (name, coin_cost, diamond_value) VALUES
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
 INSERT INTO coin_packs (name, coins, diamonds, price_cents) VALUES
-  ('Starter', 100, 0, 99),
-  ('Popular', 600, 0, 499),
-  ('Mega', 1500, 50, 999),
-  ('Diamond Pouch', 0, 500, 1999)
+  ('Starter', 100, 0, 9900),         -- ₹99
+  ('Popular', 600, 0, 49900),        -- ₹499
+  ('Mega', 1500, 50, 99900),         -- ₹999
+  ('Diamond Pouch', 0, 500, 199900)  -- ₹1999
 ON DUPLICATE KEY UPDATE name = VALUES(name);

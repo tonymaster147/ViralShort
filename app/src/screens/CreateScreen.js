@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput,
   KeyboardAvoidingView, Platform,
@@ -8,6 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { Button } from '../components/ui';
@@ -67,6 +68,15 @@ export default function CreateScreen({ navigation, route }) {
     p.loop = true;
     p.muted = originalVolume === 0;
   });
+
+  // Pause the preview when leaving Create (e.g. to the editor) so audio doesn't
+  // play in the background; resume when we come back (e.g. after a picker).
+  useFocusEffect(
+    useCallback(() => {
+      if (asset) { try { player.play(); } catch (_) {} }
+      return () => { try { player.pause(); } catch (_) {} };
+    }, [player, asset?.uri])
+  );
 
   // Clips recorded in the custom camera.
   useEffect(() => {
@@ -227,10 +237,11 @@ export default function CreateScreen({ navigation, route }) {
     navigation.navigate('ClipEditor', { assets: result.assets });
   };
 
-  // AudioPanel callbacks
-  const onSelectSound = (sound) => { setSelectedSound(sound); setMusic(null); setTrim({ start: 0, duration: null }); if (originalVolume === 1) setOriginalVolume(0); };
-  const onSelectDevice = (file) => { setMusic(file); setSelectedSound(null); setTrim({ start: 0, duration: null }); if (originalVolume === 1) setOriginalVolume(0); };
-  const onSelectOriginal = () => { setSelectedSound(null); setMusic(null); setOriginalVolume(1); };
+  // AudioPanel callbacks — resume the muted video preview (the picker paused it).
+  const resumePreview = () => { try { player.play(); } catch (_) {} };
+  const onSelectSound = (sound) => { setSelectedSound(sound); setMusic(null); setTrim({ start: 0, duration: null }); if (originalVolume === 1) setOriginalVolume(0); resumePreview(); };
+  const onSelectDevice = (file) => { setMusic(file); setSelectedSound(null); setTrim({ start: 0, duration: null }); if (originalVolume === 1) setOriginalVolume(0); resumePreview(); };
+  const onSelectOriginal = () => { setSelectedSound(null); setMusic(null); setOriginalVolume(1); resumePreview(); };
 
   const onUpload = async () => {
     if (!asset) return Alert.alert('Pick a video first');
@@ -444,10 +455,6 @@ export default function CreateScreen({ navigation, route }) {
         multiline maxLength={500}
       />
 
-      <Button title="Post Reel" onPress={onUpload} disabled={!asset} />
-      {asset ? <View style={{ height: 10 }} /> : null}
-      {asset ? <Button title="Save draft" onPress={onSaveDraft} variant="outline" /> : null}
-
       <AudioPanel
         visible={audioPanelOpen}
         onClose={() => setAudioPanelOpen(false)}
@@ -457,6 +464,18 @@ export default function CreateScreen({ navigation, route }) {
       />
       <TagPeopleModal visible={tagOpen} onClose={() => setTagOpen(false)} onPick={onPickPerson} />
     </ScrollView>
+
+    {/* Always-visible action bar so Post/Save never get buried below the form */}
+    {asset ? (
+      <View style={[styles.actionBar, { paddingBottom: insets.bottom + 8 }]}>
+        <TouchableOpacity style={styles.draftBtn} onPress={onSaveDraft}>
+          <Text style={styles.draftBtnText}>Save draft</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.postBtn} onPress={onUpload}>
+          <Text style={styles.postBtnText}>{scheduledAt ? 'Schedule' : 'Post Reel'}</Text>
+        </TouchableOpacity>
+      </View>
+    ) : null}
     </KeyboardAvoidingView>
   );
 }
@@ -485,6 +504,11 @@ const makeStyles = (colors) => StyleSheet.create({
   pickCard: { flex: 1, backgroundColor: colors.card, borderRadius: 16, paddingVertical: 26, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
   pickLabel: { color: colors.text, fontWeight: '700', marginTop: 8, fontSize: 13 },
   pickSub: { color: colors.textMuted, fontSize: 10, marginTop: 2 },
+  actionBar: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingTop: 10, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
+  draftBtn: { flex: 1, borderRadius: 30, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  draftBtnText: { color: colors.text, fontWeight: '800' },
+  postBtn: { flex: 2, borderRadius: 30, paddingVertical: 14, alignItems: 'center', backgroundColor: colors.primary },
+  postBtnText: { color: '#fff', fontWeight: '800' },
   previewWrap: { height: 360, borderRadius: 16, overflow: 'hidden', marginBottom: 16, backgroundColor: '#000' },
   preview: { flex: 1 },
   changeBtn: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
